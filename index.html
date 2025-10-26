@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可轉債競拍查詢系統</title>
+    
+    <!-- 引入 SheetJS 函式庫來讀取 Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .header-info {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .header-info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .header-info-item:hover {
+            background: rgba(255, 255, 255, 0.35);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .search-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .period-selection {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .period-selection h3 {
+            margin-bottom: 15px;
+            color: #495057;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-card .value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-card .subvalue {
+            font-size: 0.85rem;
+            color: #495057;
+            margin-top: 5px;
+        }
+
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 0.85rem;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        thead th {
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            white-space: nowrap;
+            font-size: 0.8rem;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e9ecef;
+            transition: all 0.3s;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        tbody tr:hover {
+            background: #e7f3ff !important;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+        }
+
+        tbody td {
+            padding: 10px 8px;
+            text-align: center;
+        }
+
+        .positive {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .negative {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-yes {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-no {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 2px solid #e9ecef;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .search-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-cards {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.75rem;
+            }
+
+            thead th,
+            tbody td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 可轉債競拍查詢系統</h1>
+            <p style="margin-bottom: 15px;">即時查詢得標價格與溢價率 | 資料自動更新</p>
+            <div class="header-info">
+                <div class="header-info-item">
+                    <span>📅</span>
+                    <span id="currentDate">載入中...</span>
+                </div>
+                <div class="header-info-item" onclick="window.open('https://vocus.cc/salon/655c9dbcfd897800019d5bb4', '_blank')">
+                    <span>📝</span>
+                    <span style="font-weight: 600;">方格子部落格</span>
+                </div>
+                <div class="header-info-item" onclick="window.open('https://www.youtube.com/@rexdashu168', '_blank')">
+                    <span>🎬</span>
+                    <span style="font-weight: 600;">YouTube頻道</span>
+                </div>
+            </div>
+            <p style="margin-top: 12px; font-size: 0.85rem; opacity: 0.85;">by Rex大叔的168台股投資教室</p>
+        </div>
+
+        <div id="loadingSection" class="loading">
+            <div class="loading-spinner"></div>
+            <p>正在載入資料...</p>
+        </div>
+
+        <div id="mainContent" style="display: none;">
+            <div class="search-section">
+                <div class="period-selection">
+                    <h3>
+                        <span style="font-size: 1.3rem;">📅</span>
+                        <span>查詢期間設定</span>
+                    </h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                        <div class="control-group">
+                            <label>起始日期</label>
+                            <input type="date" id="startDate">
+                        </div>
+                        <div class="control-group">
+                            <label>結束日期</label>
+                            <input type="date" id="endDate">
+                        </div>
+                        <div class="control-group">
+                            <label>快速選擇</label>
+                            <select id="quickPeriod" onchange="setQuickPeriod()">
+                                <option value="">自訂期間</option>
+                                <option value="all">全部資料</option>
+                                <option value="month1">最近1個月</option>
+                                <option value="month3">最近3個月</option>
+                                <option value="month6">最近6個月</option>
+                                <option value="year1">最近1年</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="search-controls">
+                    <div class="control-group">
+                        <label>股票代號</label>
+                        <input type="text" id="stockCode" placeholder="例如: 6117">
+                    </div>
+                    <div class="control-group">
+                        <label>公司名稱</label>
+                        <input type="text" id="companyName" placeholder="例如: 迎廣">
+                    </div>
+                    <div class="control-group">
+                        <label>有無擔保</label>
+                        <select id="securityFilter">
+                            <option value="">全部</option>
+                            <option value="有">有擔保</option>
+                            <option value="無">無擔保</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>發行年期</label>
+                        <select id="periodFilter">
+                            <option value="">全部</option>
+                            <option value="3">3年</option>
+                            <option value="5">5年</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="searchData()">查詢</button>
+                    <button class="btn btn-secondary" onclick="resetSearch()">重置</button>
+                    <button class="btn btn-success" onclick="exportToExcel()">匯出Excel</button>
+                </div>
+            </div>
+
+            <div class="stats-cards">
+                <div class="stat-card" style="background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%); border-left: 4px solid #2196f3;">
+                    <div class="label">競拍檔數</div>
+                    <div class="value" style="color: #2196f3;" id="totalCount">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f3e5f5 0%, #ffffff 100%); border-left: 4px solid #9c27b0;">
+                    <div class="label">平均得標溢價</div>
+                    <div class="value" style="color: #9c27b0;" id="avgPremium">-</div>
+                    <div class="subvalue">理論價差距</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ffebee 0%, #ffffff 100%); border-left: 4px solid #f44336;">
+                    <div class="label">最高得標溢價</div>
+                    <div class="value" style="color: #f44336;" id="maxPremium">-</div>
+                    <div class="subvalue" id="maxPremiumName">-</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%); border-left: 4px solid #4caf50;">
+                    <div class="label">最低得標溢價</div>
+                    <div class="value" style="color: #4caf50;" id="minPremium">-</div>
+                    <div class="subvalue" id="minPremiumName">-</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>序號</th>
+                            <th>開標日期</th>
+                            <th>股票代號</th>
+                            <th>CB代號</th>
+                            <th>名稱</th>
+                            <th>股本(億)</th>
+                            <th>發行規模</th>
+                            <th>年期</th>
+                            <th>擔保</th>
+                            <th>信評</th>
+                            <th>理論價</th>
+                            <th>最低得標</th>
+                            <th>最低溢價</th>
+                            <th>平均得標</th>
+                            <th>平均溢價</th>
+                            <th>掛牌最高</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p style="font-weight: 500;">資料來源：證券櫃檯買賣中心 | 資料更新：每月定期更新</p>
+            <p style="margin-top: 8px; color: #f44336; font-weight: 500;">⚠️ 本表僅供參考，投資決策請自行評估風險</p>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #dee2e6;">
+                <p style="font-weight: 600; color: #495057; margin-bottom: 12px; font-size: 1rem;">
+                    📚 Rex大叔的168台股投資教室
+                </p>
+                <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                    <a href="https://vocus.cc/salon/655c9dbcfd897800019d5bb4" target="_blank" 
+                       style="color: white; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                              padding: 8px 20px; border-radius: 20px; text-decoration: none; 
+                              font-weight: 600; transition: all 0.3s; display: inline-flex; 
+                              align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
+                        <span>📝</span>
+                        <span>方格子部落格</span>
+                    </a>
+                    <a href="https://www.youtube.com/@rexdashu168" target="_blank"
+                       style="color: white; background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%); 
+                              padding: 8px 20px; border-radius: 20px; text-decoration: none; 
+                              font-weight: 600; transition: all 0.3s; display: inline-flex; 
+                              align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(255, 0, 0, 0.3);">
+                        <span>🎬</span>
+                        <span>YouTube頻道</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let filteredData = [];
+
+        // 顯示當前日期
+        function displayCurrentDate() {
+            const now = new Date();
+            const options = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'long'
+            };
+            const dateString = now.toLocaleDateString('zh-TW', options);
+            document.getElementById('currentDate').textContent = dateString;
+        }
+
+        // 載入Excel檔案
+        async function loadExcelData() {
+            try {
+                // 從 data 資料夾載入 Excel 檔案
+                const response = await fetch('data/auction_data.xlsx');
+                
+                if (!response.ok) {
+                    throw new Error('無法載入資料檔案');
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                // 讀取第一個工作表
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // 轉換為JSON格式
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                // 處理資料
+                allData = jsonData.map((row, index) => ({
+                    no: row['序號'] || index + 1,
+                    date: row['開標日期'] || '',
+                    stockCode: row['股票代號'] || '',
+                    cbCode: row['CB代號'] || '',
+                    name: row['名稱'] || '',
+                    capital: parseFloat(row['股本']) || 0,
+                    scale: row['發行規模'] || '',
+                    period: row['年期'] || '',
+                    secured: row['擔保'] || '',
+                    rating: parseInt(row['信評']) || 0,
+                    theoretical: parseFloat(row['理論價']) || 0,
+                    minBid: parseFloat(row['最低得標']) || 0,
+                    minPremium: parseFloat(row['最低溢價']) || 0,
+                    avgBid: parseFloat(row['平均得標']) || 0,
+                    avgPremium: parseFloat(row['平均溢價']) || 0,
+                    listHigh: parseFloat(row['掛牌最高']) || 0
+                }));
+                
+                filteredData = [...allData];
+                
+                // 隱藏載入畫面，顯示主要內容
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                // 設定預設日期範圍
+                setDefaultDateRange();
+                
+                // 顯示資料
+                displayData(filteredData);
+                updateStats(filteredData);
+                
+            } catch (error) {
+                console.error('載入資料時發生錯誤:', error);
+                document.getElementById('loadingSection').innerHTML = `
+                    <div class="error-message">
+                        <h3>⚠️ 資料載入失敗</h3>
+                        <p>${error.message}</p>
+                        <p>請確認：</p>
+                        <ul style="text-align: left; margin-top: 10px;">
+                            <li>data/auction_data.xlsx 檔案是否存在</li>
+                            <li>檔案格式是否正確</li>
+                            <li>網路連線是否正常</li>
+                        </ul>
+                        <button class="btn btn-primary" style="margin-top: 15px;" onclick="location.reload()">重新載入</button>
+                    </div>
+                `;
+            }
+        }
+
+        // 設定預設日期範圍
+        function setDefaultDateRange() {
+            const today = new Date();
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            
+            document.getElementById('startDate').value = sixMonthsAgo.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+        }
+
+        // 快速期間選擇
+        function setQuickPeriod() {
+            const quickPeriod = document.getElementById('quickPeriod').value;
+            const today = new Date();
+            let startDate, endDate;
+
+            endDate = today.toISOString().split('T')[0];
+
+            switch(quickPeriod) {
+                case 'all':
+                    // 找出資料中最早的日期
+                    const dates = allData.map(item => new Date(item.date));
+                    startDate = new Date(Math.min(...dates)).toISOString().split('T')[0];
+                    break;
+                case 'month1':
+                    const oneMonth = new Date(today);
+                    oneMonth.setMonth(oneMonth.getMonth() - 1);
+                    startDate = oneMonth.toISOString().split('T')[0];
+                    break;
+                case 'month3':
+                    const threeMonths = new Date(today);
+                    threeMonths.setMonth(threeMonths.getMonth() - 3);
+                    startDate = threeMonths.toISOString().split('T')[0];
+                    break;
+                case 'month6':
+                    const sixMonths = new Date(today);
+                    sixMonths.setMonth(sixMonths.getMonth() - 6);
+                    startDate = sixMonths.toISOString().split('T')[0];
+                    break;
+                case 'year1':
+                    const oneYear = new Date(today);
+                    oneYear.setFullYear(oneYear.getFullYear() - 1);
+                    startDate = oneYear.toISOString().split('T')[0];
+                    break;
+                default:
+                    return;
+            }
+
+            document.getElementById('startDate').value = startDate;
+            document.getElementById('endDate').value = endDate;
+        }
+
+        // 顯示資料
+        function displayData(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                const minPremiumClass = item.minPremium >= 0 ? 'positive' : 'negative';
+                const avgPremiumClass = item.avgPremium >= 0 ? 'positive' : 'negative';
+
+                row.innerHTML = `
+                    <td>${item.no}</td>
+                    <td>${item.date}</td>
+                    <td>${item.stockCode}</td>
+                    <td>${item.cbCode}</td>
+                    <td style="text-align: left; white-space: nowrap;">${item.name}</td>
+                    <td>${item.capital.toFixed(2)}</td>
+                    <td>${item.scale}</td>
+                    <td>${item.period}</td>
+                    <td><span class="badge ${item.secured === '有' ? 'badge-yes' : 'badge-no'}">${item.secured}</span></td>
+                    <td>${item.rating}</td>
+                    <td>${item.theoretical.toFixed(2)}</td>
+                    <td>${item.minBid.toFixed(2)}</td>
+                    <td class="${minPremiumClass}">${item.minPremium.toFixed(1)}%</td>
+                    <td>${item.avgBid.toFixed(2)}</td>
+                    <td class="${avgPremiumClass}">${item.avgPremium.toFixed(1)}%</td>
+                    <td>${item.listHigh.toFixed(2)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 更新統計
+        function updateStats(data) {
+            if (data.length === 0) {
+                document.getElementById('totalCount').textContent = '0';
+                document.getElementById('avgPremium').textContent = '-';
+                document.getElementById('maxPremium').textContent = '-';
+                document.getElementById('minPremium').textContent = '-';
+                return;
+            }
+
+            // 總檔數
+            document.getElementById('totalCount').textContent = data.length;
+
+            // 平均得標溢價
+            const avgPremium = data.reduce((sum, item) => sum + item.avgPremium, 0) / data.length;
+            document.getElementById('avgPremium').textContent = avgPremium.toFixed(1) + '%';
+
+            // 最高得標溢價
+            const maxPremiumItem = data.reduce((max, item) => item.maxPremium > max.maxPremium ? item : max, data[0]);
+            document.getElementById('maxPremium').textContent = (maxPremiumItem.maxPremium || 0).toFixed(1) + '%';
+            document.getElementById('maxPremiumName').textContent = maxPremiumItem.name;
+
+            // 最低得標溢價
+            const minPremiumItem = data.reduce((min, item) => item.minPremium < min.minPremium ? item : min, data[0]);
+            document.getElementById('minPremium').textContent = (minPremiumItem.minPremium || 0).toFixed(1) + '%';
+            document.getElementById('minPremiumName').textContent = minPremiumItem.name;
+        }
+
+        // 搜尋功能
+        function searchData() {
+            const stockCode = document.getElementById('stockCode').value.trim();
+            const companyName = document.getElementById('companyName').value.trim();
+            const securityFilter = document.getElementById('securityFilter').value;
+            const periodFilter = document.getElementById('periodFilter').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            filteredData = allData.filter(item => {
+                const matchStock = !stockCode || item.stockCode.includes(stockCode);
+                const matchName = !companyName || item.name.includes(companyName);
+                const matchSecurity = !securityFilter || item.secured === securityFilter;
+                const matchPeriod = !periodFilter || item.period.includes(periodFilter);
+                
+                // 日期篩選
+                let matchDate = true;
+                if (startDate && endDate) {
+                    const itemDate = new Date(item.date);
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    matchDate = itemDate >= start && itemDate <= end;
+                }
+
+                return matchStock && matchName && matchSecurity && matchPeriod && matchDate;
+            });
+
+            displayData(filteredData);
+            updateStats(filteredData);
+
+            if (filteredData.length === 0) {
+                alert('查無符合條件的資料，請調整篩選條件');
+            }
+
+            document.getElementById('quickPeriod').value = '';
+        }
+
+        // 重置功能
+        function resetSearch() {
+            document.getElementById('stockCode').value = '';
+            document.getElementById('companyName').value = '';
+            document.getElementById('securityFilter').value = '';
+            document.getElementById('periodFilter').value = '';
+            document.getElementById('quickPeriod').value = '';
+            
+            setDefaultDateRange();
+            
+            filteredData = [...allData];
+            displayData(filteredData);
+            updateStats(filteredData);
+        }
+
+        // 匯出Excel功能
+        function exportToExcel() {
+            if (filteredData.length === 0) {
+                alert('目前沒有資料可以匯出');
+                return;
+            }
+
+            // 準備匯出資料
+            const exportData = filteredData.map(item => ({
+                '序號': item.no,
+                '開標日期': item.date,
+                '股票代號': item.stockCode,
+                'CB代號': item.cbCode,
+                '名稱': item.name,
+                '股本': item.capital,
+                '發行規模': item.scale,
+                '年期': item.period,
+                '擔保': item.secured,
+                '信評': item.rating,
+                '理論價': item.theoretical,
+                '最低得標': item.minBid,
+                '最低溢價': item.minPremium,
+                '平均得標': item.avgBid,
+                '平均溢價': item.avgPremium,
+                '掛牌最高': item.listHigh
+            }));
+
+            // 建立工作表
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "競拍資料");
+
+            // 下載檔案
+            const fileName = `可轉債競拍查詢_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // 初始化
+        window.onload = function() {
+            displayCurrentDate();
+            loadExcelData();
+        };
+    </script>
+</body>
+</html>
