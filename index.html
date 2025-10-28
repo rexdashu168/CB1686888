@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBAS分析系統 - Rex大叔的168台股投資教室</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            min-height: 100vh;
+        }
+        
+        /* 頂部導航列 */
+        .top-nav {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .top-nav .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+        .top-nav .logo .icon {
+            font-size: 2.5em;
+        }
+        .top-nav .logo-text h1 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+        .top-nav .logo-text p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .top-nav .author {
+            color: white;
+            font-style: italic;
+            opacity: 0.9;
+        }
+        
+        /* 快速連結按鈕 */
+        .quick-links {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .quick-link-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 0.95em;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .quick-link-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* 主容器 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        /* 載入狀態橫幅 */
+        .loading-banner {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .loading-banner.success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border-left: 5px solid #28a745;
+        }
+        .loading-banner.loading {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            border-left: 5px solid #ffc107;
+        }
+        .loading-banner .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #155724;
+        }
+        .loading-banner .details {
+            font-size: 0.95em;
+            color: #155724;
+            opacity: 0.9;
+        }
+        
+        /* 功能卡片網格 */
+        .function-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+        }
+        
+        .function-card {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .function-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+        
+        .function-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .function-card:hover {
+            transform: translateY(-15px);
+            box-shadow: 0 15px 45px rgba(0,0,0,0.2);
+        }
+        
+        .function-card .icon {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .function-card h2 {
+            color: #667eea;
+            font-size: 1.6em;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .function-card .description {
+            color: #666;
+            font-size: 1em;
+            line-height: 1.8;
+            margin-bottom: 20px;
+            min-height: 60px;
+        }
+        
+        .function-card .status {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        .status.active {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
+            box-shadow: 0 3px 10px rgba(40, 167, 69, 0.2);
+        }
+        
+        .status.coming-soon {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            color: #856404;
+            box-shadow: 0 3px 10px rgba(255, 193, 7, 0.2);
+        }
+        
+        /* 底部 */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: #667eea;
+            font-size: 0.95em;
+            margin-top: 40px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .top-nav {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            .quick-links {
+                flex-direction: column;
+            }
+            .function-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 頂部導航列 -->
+    <div class="top-nav">
+        <div class="logo">
+            <div class="icon">🎯</div>
+            <div class="logo-text">
+                <h1>CBAS分析系統</h1>
+                <p>競拍統計數據 | 智能模擬分析 | 投標價格試算</p>
+            </div>
+        </div>
+        <div class="author">by Rex大叔的168台股投資教室</div>
+    </div>
+    
+    <!-- 快速連結 -->
+    <div class="quick-links">
+        <a href="single_query.html" class="quick-link-btn">
+            🔍 單檔查詢
+        </a>
+        <a href="price_chart.html" class="quick-link-btn">
+            📈 走勢圖
+        </a>
+        <a href="https://rexdashu168.github.io/CB1686888/" target="_blank" class="quick-link-btn">
+            🎯 可轉債競拍系統
+        </a>
+        <a href="https://www.youtube.com/@RexCB168" target="_blank" class="quick-link-btn">
+            📺 YouTube頻道
+        </a>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 載入狀態橫幅 -->
+        <div id="loadingBanner" class="loading-banner loading">
+            <div class="title">📥 正在載入競拍資料...</div>
+            <div class="details">請稍候</div>
+        </div>
+
+        <!-- 功能卡片網格 -->
+        <div class="function-grid">
+            <a href="single_query.html" class="function-card">
+                <div class="icon">🔍</div>
+                <h2>單檔歷史查詢</h2>
+                <div class="description">
+                    輸入CB代號查詢歷史拆解資料<br>
+                    顯示完整月份資料表格
+                </div>
+                <span class="status active">✓ 已上線</span>
+            </a>
+
+            <a href="price_chart.html" class="function-card">
+                <div class="icon">📈</div>
+                <h2>價格走勢圖</h2>
+                <div class="description">
+                    視覺化呈現平均權利金走勢<br>
+                    折線圖分析價格變化
+                </div>
+                <span class="status active">✓ 已上線</span>
+            </a>
+
+            <a href="batch_query.html" class="function-card">
+                <div class="icon">📊</div>
+                <h2>批次查詢</h2>
+                <div class="description">
+                    一次查詢多檔CB比較<br>
+                    匯出比較結果
+                </div>
+                <span class="status coming-soon">🚧 即將推出</span>
+            </a>
+
+            <a href="filter.html" class="function-card">
+                <div class="icon">⚙️</div>
+                <h2>條件篩選</h2>
+                <div class="description">
+                    依權利金、張數、期間篩選<br>
+                    快速找到符合條件的CB
+                </div>
+                <span class="status coming-soon">🚧 即將推出</span>
+            </a>
+        </div>
+
+        <!-- 底部 -->
+        <div class="footer">
+            <p>© 2025 Rex大叔的168台股投資教室 | CBAS分析系統 v1.0</p>
+            <p style="margin-top: 10px; font-size: 0.85em; opacity: 0.8;">
+                資料僅供參考 | 投資有風險，入市需謹慎
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let excelData = null;
+        let cbListData = null;
+
+        window.onload = function() {
+            loadExcelFile();
+        };
+
+        async function loadExcelFile() {
+            const banner = document.getElementById('loadingBanner');
+            
+            try {
+                const response = await fetch('cbas_list.xlsx');
+                if (!response.ok) throw new Error('無法載入檔案');
+
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+
+                // 讀取CB清單
+                const cbListSheet = workbook.Sheets['全部CB代號'];
+                cbListData = XLSX.utils.sheet_to_json(cbListSheet, {header: 1});
+                const cbCount = cbListData.length - 1;
+
+                // 讀取月份資料
+                excelData = {};
+                let monthCount = 0;
+                const months = [];
+
+                workbook.SheetNames.forEach(sheetName => {
+                    if (/^\d{5,6}$/.test(sheetName)) {
+                        const sheet = workbook.Sheets[sheetName];
+                        const data = XLSX.utils.sheet_to_json(sheet, {header: 1});
+                        excelData[sheetName] = data;
+                        monthCount++;
+                        months.push(sheetName);
+                    }
+                });
+
+                months.sort();
+                const firstMonth = convertYM(months[0]);
+                const lastMonth = convertYM(months[months.length - 1]);
+
+                banner.className = 'loading-banner success';
+                banner.innerHTML = `
+                    <div class="title">✅ 資料載入成功</div>
+                    <div class="details">
+                        CB清單: ${cbCount} 個 | 
+                        月份資料: ${monthCount} 個月 | 
+                        範圍: ${firstMonth} ~ ${lastMonth}
+                    </div>
+                `;
+
+            } catch (error) {
+                banner.className = 'loading-banner';
+                banner.style.background = 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)';
+                banner.style.borderLeft = '5px solid #dc3545';
+                banner.innerHTML = `
+                    <div class="title">❌ 資料載入失敗</div>
+                    <div class="details" style="color: #721c24;">${error.message}<br><small>請確認 cbas_list.xlsx 檔案存在</small></div>
+                `;
+            }
+        }
+
+        function convertYM(sheetName) {
+            let year, month;
+            if (sheetName.length === 5) {
+                year = parseInt(sheetName.substring(0, 3));
+                month = parseInt(sheetName.substring(3, 5));
+            } else {
+                year = parseInt(sheetName.substring(0, 4)) - 1911;
+                month = parseInt(sheetName.substring(4, 6));
+            }
+            return `${year}/${month.toString().padStart(2, '0')}`;
+        }
+    </script>
+</body>
+</html>
