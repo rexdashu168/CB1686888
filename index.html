@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBAS分析系統 - Rex大叔的168台股投資教室</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            min-height: 100vh;
+            padding: 0;
+        }
+        
+        /* 頂部區域 */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+        .header .subtitle {
+            font-size: 1.1em;
+            opacity: 0.95;
+            margin-bottom: 25px;
+        }
+        
+        /* 頂部按鈕組 */
+        .top-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .top-btn {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 0.95em;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .top-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+            transform: translateY(-2px);
+        }
+        .header .author {
+            margin-top: 15px;
+            font-size: 0.9em;
+            opacity: 0.85;
+            font-style: italic;
+        }
+        
+        /* 載入橫幅 */
+        .loading-banner {
+            background: #fffbf0;
+            border-bottom: 3px solid #ffc107;
+            padding: 15px 20px;
+            text-align: center;
+            color: #856404;
+        }
+        .loading-banner.success {
+            background: #f0fff4;
+            border-bottom: 3px solid #28a745;
+            color: #155724;
+        }
+        
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 0;
+            box-shadow: 0 0 50px rgba(0,0,0,0.1);
+        }
+        
+        /* Tab 導航 */
+        .tab-navigation {
+            display: flex;
+            background: white;
+            border-bottom: 2px solid #e0e0e0;
+            overflow-x: auto;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 20px 15px;
+            background: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-family: 'Microsoft JhengHei', Arial;
+            transition: all 0.3s;
+            position: relative;
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab-btn .icon {
+            font-size: 1.8em;
+        }
+        .tab-btn:hover {
+            background: #f8f9fa;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        /* Tab 內容區 */
+        .tab-content {
+            display: none;
+            padding: 40px;
+            min-height: 500px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* 搜尋框 */
+        .search-section {
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+        .search-box {
+            display: flex;
+            gap: 15px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 15px 20px;
+            font-size: 1.2em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-family: 'Microsoft JhengHei', Arial;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .search-box button {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .search-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        /* 功能說明卡片 */
+        .info-card {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-left: 5px solid #2196f3;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .info-card h3 {
+            color: #1565c0;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        .info-card p {
+            color: #0d47a1;
+            line-height: 1.6;
+            margin: 5px 0;
+        }
+        
+        /* 結果區域 */
+        .result-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .result-header h2 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+        .result-info {
+            font-size: 0.95em;
+            opacity: 0.95;
+        }
+        
+        /* 表格容器 */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        /* 表格樣式 - 優化版 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        thead {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        th {
+            padding: 15px 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.85em;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255,255,255,0.2);
+        }
+        th:last-child {
+            border-right: none;
+        }
+        td {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9em;
+            border-right: 1px solid #f0f0f0;
+        }
+        td:last-child {
+            border-right: none;
+        }
+        tbody tr:hover {
+            background: #f8f9fa;
+            transform: scale(1.005);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        
+        /* 漸層色彩系統 */
+        .gradient-green-1 { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); }
+        .gradient-green-2 { background: linear-gradient(135deg, #b8dfc8 0%, #a3d5b3 100%); }
+        .gradient-green-3 { background: linear-gradient(135deg, #9cd1b0 0%, #82c99a 100%); }
+        .gradient-green-4 { background: linear-gradient(135deg, #6ec792 0%, #4caf50 100%); }
+        .gradient-green-5 { background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); }
+        
+        .gradient-yellow-1 { background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%); }
+        .gradient-yellow-2 { background: linear-gradient(135deg, #ffeeba 0%, #ffe69c 100%); }
+        .gradient-yellow-3 { background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%); }
+        
+        .gradient-red-1 { background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%); }
+        .gradient-red-2 { background: linear-gradient(135deg, #ffb3b3 0%, #ff9999 100%); }
+        .gradient-red-3 { background: linear-gradient(135deg, #ff8080 0%, #ff6666 100%); }
+        .gradient-red-4 { background: linear-gradient(135deg, #ff4d4d 0%, #ff3333 100%); }
+        .gradient-red-5 { background: linear-gradient(135deg, #ff1a1a 0%, #cc0000 100%); }
+        
+        /* 數值顏色 */
+        .value-positive { color: #c62828; font-weight: bold; }
+        .value-negative { color: #2e7d32; font-weight: bold; }
+        .value-neutral { color: #616161; }
+        
+        /* 期間標記 */
+        .term-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .term-2 { background: #e3f2fd; color: #1565c0; }
+        .term-3 { background: #f3e5f5; color: #6a1b9a; }
+        .term-5 { background: #fff3e0; color: #e65100; }
+        
+        /* 圖表容器 */
+        .chart-container {
+            position: relative;
+            height: 500px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        /* 載入中 */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+        
+        /* 錯誤訊息 */
+        .error-message {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        /* 底部 */
+        .footer {
+            text-align: center;
+            padding: 25px;
+            background: white;
+            color: #667eea;
+            font-size: 0.9em;
+            border-top: 2px solid #e0e0e0;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        
+        /* 響應式 */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.8em; }
+            .top-buttons { flex-direction: column; }
+            .tab-navigation { flex-direction: column; }
+            .search-box { flex-direction: column; }
+            th, td { padding: 8px 4px; font-size: 0.75em; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 頂部區域 -->
+    <div class="header">
+        <h1>🎯 CBAS分析系統</h1>
+        <div class="subtitle">競拍統計數據 | 智能模擬分析 | 投標價格試算</div>
+        
+        <div class="top-buttons">
+            <a href="#" class="top-btn" id="loadDataBtn">📥 載入中...</a>
+            <a href="https://vocus.cc/user/@rexdashu168" target="_blank" class="top-btn">📝 方格子部落格</a>
+            <a href="https://www.youtube.com/@RexCB168" target="_blank" class="top-btn">📺 YouTube頻道</a>
+        </div>
+        
+        <div class="author">by Rex大叔的168台股投資教室</div>
+    </div>
+    
+    <!-- 載入橫幅 -->
+    <div id="loadingBanner" class="loading-banner">
+        📥 正在載入競拍資料...
+    </div>
+    
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- Tab 導航 -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" onclick="showTab('single')">
+                <span class="icon">🔍</span>
+                <span>單檔查詢</span>
+            </button>
+            <button class="tab-btn" onclick="showTab('chart')">
+                <span class="icon">📈</span>
+                <span>價格走勢圖</span>
+            </button>
+            <button class="tab-btn" onclick="showTab('batch')">
+                <span class="icon">📊</span>
+                <span>批次查詢</span>
+            </button>
+            <button class="tab-btn" onclick="showTab('filter')">
+                <span class="icon">⚙️</span>
+                <span>條件篩選</span>
+            </button>
+        </div>
+        
+        <!-- Tab 內容 -->
+        
+        <!-- 單檔查詢 -->
+        <div id="singleTab" class="tab-content active">
+            <div class="info-card">
+                <h3>💡 功能說明</h3>
+                <p>查詢方式:輸入CB代號查詢歷史拆解資料</p>
+                <p>顯示內容:該CB所有歷史CBAS拆解交易記錄</p>
+                <p>使用範例:輸入「23836」查詢台光電六的完整資料</p>
+            </div>
+            
+            <div class="search-section">
+                <div class="search-box">
+                    <input type="text" id="cbCode1" placeholder="輸入CB代號 (例如: 23836)" maxlength="5">
+                    <button onclick="searchSingle()">查詢</button>
+                </div>
+            </div>
+            
+            <div id="result1"></div>
+        </div>
+        
+        <!-- 價格走勢圖 -->
+        <div id="chartTab" class="tab-content">
+            <div class="info-card">
+                <h3>💡 功能說明</h3>
+                <p>查詢方式:輸入CB代號查看平均權利金走勢</p>
+                <p>顯示內容:視覺化折線圖呈現價格變化趨勢</p>
+                <p>使用範例:輸入「23836」查看台光電六的價格走勢</p>
+            </div>
+            
+            <div class="search-section">
+                <div class="search-box">
+                    <input type="text" id="cbCode2" placeholder="輸入CB代號 (例如: 23836)" maxlength="5">
+                    <button onclick="searchChart()">查詢</button>
+                </div>
+            </div>
+            
+            <div id="result2"></div>
+        </div>
+        
+        <!-- 批次查詢 -->
+        <div id="batchTab" class="tab-content">
+            <div class="info-card">
+                <h3>💡 功能說明</h3>
+                <p>查詢方式:一次輸入多個CB代號進行比較</p>
+                <p>顯示內容:並排顯示多檔CB的拆解資料比較</p>
+                <p>使用範例:輸入「23836, 11011」比較多檔CB</p>
+            </div>
+            
+            <div class="loading" style="padding: 100px 20px;">
+                <h2>🚧 功能開發中</h2>
+                <p style="margin-top: 15px; color: #666;">此功能即將推出，敬請期待！</p>
+            </div>
+        </div>
+        
+        <!-- 條件篩選 -->
+        <div id="filterTab" class="tab-content">
+            <div class="info-card">
+                <h3>💡 功能說明</h3>
+                <p>查詢方式:設定篩選條件找出符合的CB</p>
+                <p>顯示內容:依權利金、張數、期間等條件篩選</p>
+                <p>使用範例:篩選平均權利金 > 10元的所有CB</p>
+            </div>
+            
+            <div class="loading" style="padding: 100px 20px;">
+                <h2>🚧 功能開發中</h2>
+                <p style="margin-top: 15px; color: #666;">此功能即將推出，敬請期待！</p>
+            </div>
+        </div>
+        
+        <!-- 底部 -->
+        <div class="footer">
+            <p>© 2025 Rex大叔的168台股投資教室 | CBAS分析系統 v1.0</p>
+            <p style="margin-top: 8px; opacity: 0.8;">資料僅供參考 | 投資有風險，入市需謹慎</p>
+        </div>
+    </div>
+
+    <script>
+        let excelData = null;
+        let cbListData = null;
+        let myChart = null;
+        
+        // Tab 切換
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            if (tabName === 'single') {
+                document.getElementById('singleTab').classList.add('active');
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            } else if (tabName === 'chart') {
+                document.getElementById('chartTab').classList.add('active');
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            } else if (tabName === 'batch') {
+                document.getElementById('batchTab').classList.add('active');
+                document.querySelectorAll('.tab-btn')[2].classList.add('active');
+            } else if (tabName === 'filter') {
+                document.getElementById('filterTab').classList.add('active');
+                document.querySelectorAll('.tab-btn')[3].classList.add('active');
+            }
+        }
+        
+        // 漸層色彩計算函數
+        function getGradientClass(value, min, max, isPositive = true) {
+            const range = max - min;
+            const normalized = (value - min) / range;
+            
+            if (isPositive) {
+                // 數值越高顏色越深 (綠色)
+                if (normalized < 0.2) return 'gradient-green-1';
+                if (normalized < 0.4) return 'gradient-green-2';
+                if (normalized < 0.6) return 'gradient-green-3';
+                if (normalized < 0.8) return 'gradient-green-4';
+                return 'gradient-green-5';
+            } else {
+                // 數值越高顏色越深 (紅色,用於負面指標)
+                if (normalized < 0.2) return 'gradient-red-1';
+                if (normalized < 0.4) return 'gradient-red-2';
+                if (normalized < 0.6) return 'gradient-red-3';
+                if (normalized < 0.8) return 'gradient-red-4';
+                return 'gradient-red-5';
+            }
+        }
+        
+        // 載入資料
+        window.onload = function() {
+            loadExcelFile();
+        };
+        
+        async function loadExcelFile() {
+            const banner = document.getElementById('loadingBanner');
+            const loadBtn = document.getElementById('loadDataBtn');
+            
+            try {
+                const response = await fetch('cbas_list.xlsx');
+                if (!response.ok) throw new Error('無法載入檔案');
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+                
+                const cbListSheet = workbook.Sheets['全部CB代號'];
+                cbListData = XLSX.utils.sheet_to_json(cbListSheet, {header: 1});
+                const cbCount = cbListData.length - 1;
+                
+                excelData = {};
+                let monthCount = 0;
+                const months = [];
+                
+                workbook.SheetNames.forEach(sheetName => {
+                    if (/^\d{5,6}$/.test(sheetName)) {
+                        const sheet = workbook.Sheets[sheetName];
+                        const data = XLSX.utils.sheet_to_json(sheet, {header: 1});
+                        excelData[sheetName] = data;
+                        monthCount++;
+                        months.push(sheetName);
+                    }
+                });
+                
+                months.sort();
+                const firstMonth = convertYM(months[0]);
+                const lastMonth = convertYM(months[months.length - 1]);
+                
+                banner.className = 'loading-banner success';
+                banner.textContent = `✅ 資料載入成功 | CB清單: ${cbCount} 個 | 月份資料: ${monthCount} 個月 | 範圍: ${firstMonth} ~ ${lastMonth}`;
+                
+                loadBtn.textContent = '✅ 載入完成';
+                loadBtn.style.background = 'rgba(40, 167, 69, 0.3)';
+                
+            } catch (error) {
+                banner.className = 'loading-banner';
+                banner.style.background = '#f8d7da';
+                banner.style.borderColor = '#dc3545';
+                banner.style.color = '#721c24';
+                banner.textContent = `❌ 載入失敗: ${error.message}`;
+                
+                loadBtn.textContent = '❌ 載入失敗';
+                loadBtn.style.background = 'rgba(220, 53, 69, 0.3)';
+            }
+        }
+        
+        function convertYM(sheetName) {
+            let year, month;
+            if (sheetName.length === 5) {
+                year = parseInt(sheetName.substring(0, 3));
+                month = parseInt(sheetName.substring(3, 5));
+            } else {
+                year = parseInt(sheetName.substring(0, 4)) - 1911;
+                month = parseInt(sheetName.substring(4, 6));
+            }
+            return `${year}/${month.toString().padStart(2, '0')}`;
+        }
+        
+        // 單檔查詢
+        function searchSingle() {
+            const cbCode = document.getElementById('cbCode1').value.trim();
+            if (!cbCode) { alert('請輸入CB代號'); return; }
+            if (!excelData) { alert('資料尚未載入'); return; }
+            
+            document.getElementById('result1').innerHTML = '<div class="loading">查詢中...</div>';
+            
+            setTimeout(() => {
+                try {
+                    let cbName = '';
+                    for (let i = 1; i < cbListData.length; i++) {
+                        if (String(cbListData[i][1]).trim() === String(cbCode).trim()) {
+                            cbName = cbListData[i][2];
+                            break;
+                        }
+                    }
+                    
+                    if (!cbName) {
+                        document.getElementById('result1').innerHTML = '<div class="error-message"><h3>找不到CB代號: ' + cbCode + '</h3></div>';
+                        return;
+                    }
+                    
+                    const results = [];
+                    const months = Object.keys(excelData).sort();
+                    
+                    months.forEach(month => {
+                        const data = excelData[month];
+                        for (let i = 1; i < data.length; i++) {
+                            if (String(data[i][0]).trim() === String(cbCode).trim()) {
+                                const notional = data[i][2] || 0;
+                                const shares = Math.floor(notional / 100000);
+                                const avg = data[i][6] || 0;
+                                const premium = Math.round((avg * notional / 100000 / 10000));
+                                
+                                results.push({
+                                    yearMonth: convertYM(month),
+                                    shares: shares,
+                                    transactions: data[i][3] || 0,
+                                    lowest: data[i][4] || 0,
+                                    highest: data[i][5] || 0,
+                                    average: avg,
+                                    term: data[i][7] || 0,
+                                    premium: premium
+                                });
+                            }
+                        }
+                    });
+                    
+                    if (results.length === 0) {
+                        document.getElementById('result1').innerHTML = '<div class="error-message"><h3>查無資料: ' + cbCode + ' ' + cbName + '</h3></div>';
+                        return;
+                    }
+                    
+                    // 計算數值範圍用於漸層色
+                    const sharesValues = results.map(r => r.shares);
+                    const transValues = results.map(r => r.transactions);
+                    const avgValues = results.map(r => r.average);
+                    const premiumValues = results.map(r => r.premium);
+                    
+                    const sharesMin = Math.min(...sharesValues);
+                    const sharesMax = Math.max(...sharesValues);
+                    const transMin = Math.min(...transValues);
+                    const transMax = Math.max(...transValues);
+                    const avgMin = Math.min(...avgValues);
+                    const avgMax = Math.max(...avgValues);
+                    const premiumMin = Math.min(...premiumValues);
+                    const premiumMax = Math.max(...premiumValues);
+                    
+                    let html = `
+                        <div class="result-header">
+                            <h2>【查詢結果: ${cbCode} ${cbName}】</h2>
+                            <div class="result-info">找到 ${results.length} 筆資料 | ${results[0].yearMonth} ~ ${results[results.length-1].yearMonth}</div>
+                        </div>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>年月</th>
+                                        <th>拆解張數</th>
+                                        <th>成交筆數</th>
+                                        <th>最低<br>權利金(元)</th>
+                                        <th>最高<br>權利金(元)</th>
+                                        <th>平均<br>權利金(元)</th>
+                                        <th>契約<br>期間</th>
+                                        <th>權利金<br>(萬元)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    results.forEach(r => {
+                        const sharesGradient = getGradientClass(r.shares, sharesMin, sharesMax, true);
+                        const transGradient = getGradientClass(r.transactions, transMin, transMax, true);
+                        const avgGradient = getGradientClass(r.average, avgMin, avgMax, true);
+                        const premiumGradient = getGradientClass(r.premium, premiumMin, premiumMax, true);
+                        
+                        html += `
+                            <tr>
+                                <td><strong>${r.yearMonth}</strong></td>
+                                <td class="${sharesGradient}"><strong>${r.shares.toLocaleString()}</strong></td>
+                                <td class="${transGradient}">${r.transactions.toLocaleString()}</td>
+                                <td>${r.lowest.toFixed(2)}</td>
+                                <td>${r.highest.toFixed(2)}</td>
+                                <td class="${avgGradient}"><strong>${r.average.toFixed(2)}</strong></td>
+                                <td><span class="term-badge term-${r.term}">${r.term}年</span></td>
+                                <td class="${premiumGradient}"><strong>${r.premium.toLocaleString()}</strong></td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</tbody></table></div>';
+                    document.getElementById('result1').innerHTML = html;
+                    
+                } catch (error) {
+                    document.getElementById('result1').innerHTML = '<div class="error-message"><h3>搜尋錯誤: ' + error.message + '</h3></div>';
+                }
+            }, 300);
+        }
+        
+        // 價格走勢圖
+        function searchChart() {
+            const cbCode = document.getElementById('cbCode2').value.trim();
+            if (!cbCode) { alert('請輸入CB代號'); return; }
+            if (!excelData) { alert('資料尚未載入'); return; }
+            
+            document.getElementById('result2').innerHTML = '<div class="loading">查詢中...</div>';
+            
+            setTimeout(() => {
+                try {
+                    let cbName = '';
+                    for (let i = 1; i < cbListData.length; i++) {
+                        if (String(cbListData[i][1]).trim() === String(cbCode).trim()) {
+                            cbName = cbListData[i][2];
+                            break;
+                        }
+                    }
+                    
+                    if (!cbName) {
+                        document.getElementById('result2').innerHTML = '<div class="error-message"><h3>找不到CB代號: ' + cbCode + '</h3></div>';
+                        return;
+                    }
+                    
+                    const results = [];
+                    const months = Object.keys(excelData).sort();
+                    
+                    months.forEach(month => {
+                        const data = excelData[month];
+                        for (let i = 1; i < data.length; i++) {
+                            if (String(data[i][0]).trim() === String(cbCode).trim()) {
+                                results.push({
+                                    yearMonth: convertYM(month),
+                                    average: data[i][6] || 0
+                                });
+                            }
+                        }
+                    });
+                    
+                    if (results.length === 0) {
+                        document.getElementById('result2').innerHTML = '<div class="error-message"><h3>查無資料: ' + cbCode + ' ' + cbName + '</h3></div>';
+                        return;
+                    }
+                    
+                    document.getElementById('result2').innerHTML = `
+                        <div class="result-header">
+                            <h2>【價格走勢: ${cbCode} ${cbName}】</h2>
+                            <div class="result-info">資料筆數: ${results.length} | ${results[0].yearMonth} ~ ${results[results.length-1].yearMonth}</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                    `;
+                    
+                    const labels = results.map(r => r.yearMonth);
+                    const data = results.map(r => r.average);
+                    const ctx = document.getElementById('priceChart').getContext('2d');
+                    
+                    if (myChart) myChart.destroy();
+                    
+                    myChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: '平均權利金(元)',
+                                data: data,
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                borderWidth: 3,
+                                tension: 0.4,
+                                fill: true,
+                                pointRadius: 5,
+                                pointHoverRadius: 7,
+                                pointBackgroundColor: '#667eea',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { 
+                                    position: 'top',
+                                    labels: { font: { size: 14, family: "'Microsoft JhengHei', Arial" } }
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    padding: 12,
+                                    callbacks: {
+                                        label: context => '平均權利金: ' + context.parsed.y.toFixed(2) + ' 元'
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: false,
+                                    title: { 
+                                        display: true, 
+                                        text: '平均權利金(元)',
+                                        font: { size: 14, family: "'Microsoft JhengHei', Arial" }
+                                    }
+                                },
+                                x: {
+                                    title: { 
+                                        display: true, 
+                                        text: '年月',
+                                        font: { size: 14, family: "'Microsoft JhengHei', Arial" }
+                                    },
+                                    ticks: { maxRotation: 45, minRotation: 45 }
+                                }
+                            }
+                        }
+                    });
+                    
+                } catch (error) {
+                    document.getElementById('result2').innerHTML = '<div class="error-message"><h3>搜尋錯誤: ' + error.message + '</h3></div>';
+                }
+            }, 300);
+        }
+        
+        // Enter 鍵搜尋
+        document.getElementById('cbCode1').addEventListener('keypress', e => { if (e.key === 'Enter') searchSingle(); });
+        document.getElementById('cbCode2').addEventListener('keypress', e => { if (e.key === 'Enter') searchChart(); });
+    </script>
+</body>
+</html>
