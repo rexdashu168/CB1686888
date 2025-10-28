@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBAS查詢工具 - 歷史月拆解資料</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .info-banner { background: #d1ecf1; border-left: 5px solid #0c5460; color: #0c5460; padding: 15px 20px; margin: 20px 40px; border-radius: 5px; }
+        .info-banner strong { margin-right: 10px; }
+        .search-section { padding: 40px; background: #f8f9fa; }
+        .search-box { display: flex; gap: 15px; max-width: 600px; margin: 0 auto; }
+        #cbCodeInput { flex: 1; padding: 15px 20px; font-size: 1.2em; border: 2px solid #ddd; border-radius: 10px; outline: none; transition: all 0.3s; }
+        #cbCodeInput:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        #searchBtn { padding: 15px 40px; font-size: 1.2em; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; cursor: pointer; transition: all 0.3s; font-weight: bold; }
+        #searchBtn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3); }
+        .loading { text-align: center; padding: 40px; font-size: 1.2em; color: #667eea; }
+        .loading-detail { font-size: 0.9em; color: #999; margin-top: 10px; }
+        .result-section { padding: 40px; }
+        .result-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; }
+        .result-header h2 { font-size: 1.8em; }
+        .result-info { font-size: 0.9em; margin-top: 10px; opacity: 0.9; }
+        .table-container { overflow-x: auto; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        th { padding: 15px; text-align: center; font-weight: bold; font-size: 1em; white-space: nowrap; }
+        td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #eee; }
+        tbody tr { transition: all 0.3s; }
+        tbody tr:hover { background: #f8f9fa; transform: scale(1.01); }
+        .term-2 { background: rgba(102, 126, 234, 0.1); }
+        .term-3 { background: rgba(118, 75, 162, 0.1); }
+        .note-section { margin-top: 30px; padding: 20px; background: #fff3cd; border-left: 5px solid #ffc107; border-radius: 5px; }
+        .note-section h3 { color: #856404; margin-bottom: 10px; font-size: 1.2em; }
+        .note-section ul { list-style: none; padding-left: 20px; }
+        .note-section li { color: #856404; margin: 5px 0; font-size: 1em; }
+        .note-section li:before { content: "• "; color: #ffc107; font-weight: bold; margin-right: 5px; }
+        .error-message { text-align: center; padding: 40px; color: #dc3545; font-size: 1.2em; }
+        .error-details { margin-top: 20px; text-align: left; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 20px; max-width: 600px; margin: 20px auto; }
+        .error-details h4 { color: #721c24; margin-bottom: 10px; }
+        .error-details ul { color: #721c24; padding-left: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>【CBAS查詢工具】</h1>
+            <p>歷史月拆解資料與價格走勢圖</p>
+        </div>
+        <div id="infoBanner" style="display:none;" class="info-banner"></div>
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" id="cbCodeInput" placeholder="請輸入CB代號 (例如: 67531)" maxlength="5">
+                <button id="searchBtn" onclick="searchCB()">查詢</button>
+            </div>
+        </div>
+        <div id="loadingDiv" class="loading" style="display:none;">
+            <div>載入中...</div>
+            <div id="loadingDetail" class="loading-detail"></div>
+        </div>
+        <div id="resultDiv" class="result-section" style="display:none;"></div>
+    </div>
+    <script>let excelData = null;
+        let cbListData = null;
+        let loadInfo = { cbCount: 0, monthCount: 0, months: [] };
+        
+        window.onload = function() { loadExcelFile(); };
+        
+        async function loadExcelFile() {
+            console.log('=== 開始載入Excel檔案 ===');
+            document.getElementById('loadingDiv').style.display = 'block';
+            document.getElementById('loadingDetail').textContent = '正在讀取 cbas_list.xlsx...';
+            
+            try {
+                const response = await fetch('cbas_list.xlsx');
+                if (!response.ok) {
+                    throw new Error('無法載入cbas_list.xlsx檔案');
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+                console.log('工作表清單:', workbook.SheetNames);
+                
+                // 讀取CB清單
+                if (!workbook.Sheets['全部CB代號']) {
+                    throw new Error('找不到「全部CB代號」工作表');
+                }
+                
+                const cbListSheet = workbook.Sheets['全部CB代號'];
+                cbListData = XLSX.utils.sheet_to_json(cbListSheet, {header: 1});
+                loadInfo.cbCount = cbListDatlet excelData = null;
+        let cbListData = null;
+        let loadInfo = { cbCount: 0, monthCount: 0, months: [] };
+        
+        window.onload = function() { loadExcelFile(); };
+        
+        async function loadExcelFile() {
+            console.log('=== 開始載入Excel檔案 ===');
+            document.getElementById('loadingDiv').style.display = 'block';
+            document.getElementById('loadingDetail').textContent = '正在讀取 cbas_list.xlsx...';
+            
+            try {
+                const response = await fetch('cbas_list.xlsx');
+                if (!response.ok) {
+                    throw new Error('無法載入cbas_list.xlsx檔案');
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+                console.log('工作表清單:', workbook.SheetNames);
+                
+                // 讀取CB清單
+                if (!workbook.Sheets['全部CB代號']) {
+                    throw new Error('找不到「全部CB代號」工作表');
+                }
+                
+                const cbListSheet = workbook.Sheets['全部CB代號'];
+                cbListData = XLSX.utils.sheet_to_json(cbListSheet, {header: 1});
+                loadInfo.cbCount = cbListData.length - 1; // 扣除表頭
+                console.log(`✅ CB清單載入成功: ${loadInfo.cbCount} 個CB`);
+                
+                // 讀取所有月份工作表
+                excelData = {};
+                workbook.SheetNames.forEach(sheetName => {
+                    if (/^\d{6}$/.test(sheetName)) {
+                        const sheet = workbook.Sheets[sheetName];
+                        const data = XLSX.utils.sheet_to_json(sheet, {header: 1});
+                        excelData[sheetName] = data;
+                        loadInfo.months.push(sheetName);
+                        console.log(`✅ 載入月份: ${sheetName} (${data.length-1} 筆資料)`);
+                    }
+                });
+                
+                loadInfo.monthCount = loadInfo.months.length;
+                loadInfo.months.sort();
+                
+                console.log('=== 載入完成 ===');
+                console.log(`總共: ${loadInfo.cbCount} 個CB, ${loadInfo.monthCount} 個月份`);
+                console.log(`月份範圍: ${loadInfo.months[0]} ~ ${loadInfo.months[loadInfo.months.length-1]}`);
+                
+                // 顯示載入資訊
+                const infoBanner = document.getElementById('infoBanner');
+                infoBanner.innerHTML = `
+                    <strong>✅ 資料載入成功</strong>
+                    CB清單: ${loadInfo.cbCount} 個 | 
+                    月份資料: ${loadInfo.monthCount} 個月 | 
+                    範圍: ${convertYearMonth(loadInfo.months[0])} ~ ${convertYearMonth(loadInfo.months[loadInfo.months.length-1])}
+                `;
+                infoBanner.style.display = 'block';
+                document.getElementById('loadingDiv').style.display = 'none';
+                
+            } catch (error) {
+                console.error('❌ 載入失敗:', error);
+                document.getElementById('loadingDiv').innerHTML = `
+                    <div style="color: #dc3545;">
+                        <h3>載入失敗</h3>
+                        <p>${error.message}</p>
+                        <p style="font-size: 0.9em; margin-top: 10px;">請確認 cbas_list.xlsx 與 index.html 在同一資料夾</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function convertYearMonth(sheetName) {
+            const year = parseInt(sheetName.substring(0, 4));
+            const month = parseInt(sheetName.substring(4, 6));
+            const twYear = year - 1911;
+            return `${twYear}/${month.toString().padStart(2, '0')}`;
+        }
+        
+        function searchCB() {
+            const cbCode = document.getElementById('cbCodeInput').value.trim();
+            if (!cbCode) { alert('請輸入CB代號'); return; }
+            if (!excelData) { alert('Excel資料尚未載入完成,請稍後再試'); return; }
+            
+            console.log(`\n=== 開始搜尋CB: ${cbCode} ===`);
+            document.getElementById('loadingDiv').style.display = 'block';
+            document.getElementById('loadingDetail').textContent = `正在搜尋 ${cbCode}...`;
+            document.getElementById('resultDiv').style.display = 'none';
+            
+            setTimeout(() => { processSearch(cbCode); }, 300);
+        }
+        
+        function processSearch(cbCode) {
+            try {
+                // 從CB清單找到CB名稱
+                let cbName = '';
+                let cbFound = false;
+                console.log('搜尋CB清單...');
+                for (let i = 1; i < cbListData.length; i++) {
+                    if (cbListData[i][1] == cbCode) {
+                        cbName = cbListData[i][2];
+                        cbFound = true;
+                        console.log(`✅ 找到CB: ${cbCode} ${cbName}`);
+                        break;
+                    }
+                }
+                
+                if (!cbFound) {
+                    console.log(`❌ 在CB清單中找不到: ${cbCode}`);
+                    showError('找不到此CB代號', cbCode);
+                    return;
+                }
+                
+                // 收集所有月份的資料
+                const results = [];
+                const monthSheets = Object.keys(excelData).sort();
+                console.log(`開始搜尋 ${monthSheets.length} 個月份...`);
+                
+                monthSheets.forEach(sheetName => {
+                    const sheetData = excelData[sheetName];
+                    const yearMonth = convertYearMonth(sheetName);
+                    let foundInMonth = 0;
+                    
+                    for (let i = 1; i < sheetData.length; i++) {
+                        const row = sheetData[i];
+                        if (row[0] == cbCode) {
+                            foundInMonth++;
+                            const notionalAmount = row[2] || 0;
+                            const shares = Math.floor(notionalAmount / 100000);
+                            const average = row[6] || 0;
+                            const premiumAmount = Math.round((average * notionalAmount / 100000 / 10000));
+                            
+                            results.push({
+                                yearMonth: yearMonth, shares: shares, transactions: row[3] || 0,
+                                lowest: row[4] || 0, highest: row[5] || 0, average: average,
+                                term: row[7] || 0, premium: premiumAmount
+                            });
+                        }
+                    }
+                    
+                    if (foundInMonth > 0) {
+                        console.log(`  ${sheetName}: 找到 ${foundInMonth} 筆`);
+                    }
+                });
+                
+                console.log(`=== 搜尋完成: 共找到 ${results.length} 筆資料 ===`);
+                
+                if (results.length === 0) {
+                    showError('查無此CB的歷史資料', cbCode);
+                    return;
+                }
+                
+                displayResults(cbCode, cbName, results);
+                
+            } catch (error) {
+                console.error('❌ 搜尋錯誤:', error);
+                showError('搜尋時發生錯誤: ' + error.message, cbCode);
+            }
+        }
+        
+        function displayResults(cbCode, cbName, results) {
+            const resultDiv = document.getElementById('resultDiv');
+            const monthMap = {};
+            results.forEach(r => {
+                if (!monthMap[r.yearMonth]) monthMap[r.yearMonth] = [];
+                monthMap[r.yearMonth].push(r);
+            });
+            const hasDuplicateMonth = Object.values(monthMap).some(arr => arr.length > 1);
+            
+            let html = `
+                <div class="result-header">
+                    <h2>【查詢結果: ${cbCode} ${cbName}】</h2>
+                    <div class="result-info">
+                        找到 ${results.length} 筆資料 | 
+                        ${Object.keys(monthMap).length} 個月份 | 
+                        ${results[0].yearMonth} ~ ${results[results.length-1].yearMonth}
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>年月</th><th>拆解張數</th><th>成交筆數</th>
+                                <th>權利金區間(元)</th><th>平均(元)</th><th>期間</th><th>權利金(萬)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            results.forEach(row => {
+                const termClass = row.term == 2 ? 'term-2' : 'term-3';
+                html += `
+                    <tr class="${termClass}">
+                        <td>${row.yearMonth}</td>
+                        <td>${row.shares.toLocaleString()}</td>
+                        <td>${row.transactions.toLocaleString()}</td>
+                        <td>${row.lowest.toFixed(2)} - ${row.highest.toFixed(2)}</td>
+                        <td>${row.average.toFixed(2)}</td>
+                        <td>${row.term}年</td>
+                        <td>${row.premium.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `</tbody></table></div>`;
+            
+            if (hasDuplicateMonth) {
+                html += `<div class="note-section"><h3>📌 說明:</h3><ul>`;
+                Object.keys(monthMap).forEach(month => {
+                    if (monthMap[month].length > 1) {
+                        html += `<li>${month} 出現兩筆資料,分別為新拆解契約與續約契約</li>`;
+                    }
+                });
+                html += `<li>不同契約期間以顏色區分 (淡藍色=2年期，淡紫色=3年期)</li></ul></div>`;
+            }
+            
+            resultDiv.innerHTML = html;
+            document.getElementById('loadingDiv').style.display = 'none';
+            resultDiv.style.display = 'block';
+        }
+        
+        function showError(message, cbCode) {
+            const resultDiv = document.getElementById('resultDiv');
+            resultDiv.innerHTML = `
+                <div class="error-message">
+                    <h3>❌ ${message}</h3>
+                    <div class="error-details">
+                        <h4>可能原因:</h4>
+                        <ul>
+                            <li>CB代號輸入錯誤</li>
+                            <li>此CB在資料期間內沒有CBAS交易記錄</li>
+                            <li>此CB尚未發行或已到期</li>
+                        </ul>
+                        <h4 style="margin-top: 15px;">除錯資訊:</h4>
+                        <ul>
+                            <li>搜尋代號: ${cbCode || '(空白)'}</li>
+                            <li>可用月份: ${loadInfo.monthCount} 個</li>
+                            <li>按 F12 開啟控制台查看詳細資訊</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            document.getElementById('loadingDiv').style.display = 'none';
+            resultDiv.style.display = 'block';
+        }
+        
+        document.getElementById('cbCodeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchCB();
+        });
+    </script>
+</body>
+</html>
