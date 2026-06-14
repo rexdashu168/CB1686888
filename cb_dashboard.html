@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CB公開資訊看板 - Rex大叔的168台股投資教室</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #f3f5f9;
+            --card: #ffffff;
+            --border: #e3e8ef;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --primary: #1e3a5f;
+            --accent: #2563eb;
+            --red: #dc2626;
+            --green: #16a34a;
+            --amber: #d97706;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        header {
+            background: var(--primary);
+            color: #fff;
+            padding: 24px 20px;
+        }
+        .header-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        header h1 { font-size: 1.8em; margin-bottom: 6px; }
+        header .subtitle { font-size: 0.95em; opacity: 0.85; }
+        .header-meta {
+            text-align: right;
+            font-size: 0.9em;
+        }
+        .data-month {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            padding: 6px 16px;
+            margin-bottom: 8px;
+        }
+        .header-links a {
+            color: #cbd5e1;
+            text-decoration: none;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+        .header-links a:hover { color: #fff; text-decoration: underline; }
+
+        /* Loading status */
+        .load-status {
+            text-align: center;
+            padding: 10px;
+            font-size: 0.9em;
+            background: #fffbeb;
+            color: #92400e;
+            border-bottom: 2px solid #f59e0b;
+        }
+        .load-status.success { background: #f0fdf4; color: #166534; border-bottom-color: #16a34a; }
+        .load-status.error { background: #fef2f2; color: #991b1b; border-bottom-color: #dc2626; }
+
+        /* Tabs */
+        .tabs {
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            overflow-x: auto;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .tab-btn {
+            flex: 0 0 auto;
+            padding: 14px 22px;
+            border: none;
+            background: none;
+            font-size: 1em;
+            font-family: inherit;
+            color: var(--muted);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .tab-btn:hover { color: var(--accent); }
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* Main */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        h2.section-title { font-size: 1.4em; margin-bottom: 16px; }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card .label { color: var(--muted); font-size: 0.95em; margin-bottom: 6px; }
+        .stat-card .value { font-size: 2em; font-weight: bold; }
+        .stat-card .sub { font-size: 0.95em; color: var(--muted); margin-top: 4px; }
+        .stat-card.high .value { color: var(--red); }
+        .stat-card.low .value { color: var(--green); }
+
+        /* Event banner */
+        .event-banner {
+            background: #fffbeb;
+            border-left: 4px solid var(--amber);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            color: #92400e;
+            font-weight: bold;
+            display: none;
+        }
+
+        /* Chart */
+        .chart-container {
+            position: relative;
+            height: 380px;
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Event timeline */
+        .event-item {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95em;
+        }
+        .event-item:last-child { border-bottom: none; }
+        .event-month {
+            background: #eef2ff;
+            color: var(--accent);
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-weight: bold;
+            flex: 0 0 auto;
+        }
+        .event-text { flex: 1; }
+        .event-stats { color: var(--muted); font-size: 0.9em; }
+
+        /* Search */
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .search-bar input {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+        .search-bar input:focus { outline: none; border-color: var(--accent); }
+        .search-bar button {
+            padding: 10px 28px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .search-bar button:hover { background: #1d4ed8; }
+
+        /* Table */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            background: var(--card);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+        thead { background: #f8fafc; }
+        th {
+            padding: 12px 10px;
+            text-align: center;
+            font-weight: bold;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--border);
+            color: #334155;
+        }
+        td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        tbody tr:hover { background: #f8fafc; }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .pos { color: var(--red); font-weight: bold; }
+        .neg { color: var(--green); font-weight: bold; }
+        .muted { color: var(--muted); }
+        .error { color: #991b1b; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .badge-high { background: #fee2e2; color: var(--red); }
+        .badge-low { background: #dcfce7; color: var(--green); }
+        .badge-both { background: #fef3c7; color: var(--amber); }
+
+        .info-text {
+            color: var(--muted);
+            font-size: 0.95em;
+            margin-bottom: 16px;
+        }
+
+        /* Result summary */
+        .result-summary {
+            background: #eef2ff;
+            color: var(--accent);
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 14px;
+            font-weight: bold;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 24px;
+            background: #fff;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            font-size: 0.95em;
+        }
+        footer p { margin: 4px 0; }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.4em; }
+            .header-meta { text-align: left; }
+            .stat-card .value { font-size: 1.6em; }
+            th, td { padding: 8px 6px; font-size: 0.88em; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <div>
+                <h1>📊 CB 公開資訊看板</h1>
+                <div class="subtitle">可轉換公司債 創新高 / 創新低 月度追蹤</div>
+            </div>
+            <div class="header-meta">
+                <div class="data-month" id="dataMonth">資料載入中...</div>
+                <div class="header-links">
+                    <a href="index.html">🔍 CBAS拆解查詢系統</a>
+                    <a href="https://vocus.cc/user/@rexdashu168" target="_blank">📝 方格子部落格</a>
+                    <a href="https://www.youtube.com/@RexCB168" target="_blank">📺 YouTube頻道</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="loadStatus" class="load-status">📥 正在載入CB資料...</div>
+
+    <nav class="tabs">
+        <button class="tab-btn active" onclick="showTab('overview')">📊 總覽</button>
+        <button class="tab-btn" onclick="showTab('newHigh')">🔴 創新高</button>
+        <button class="tab-btn" onclick="showTab('newLow')">🟢 創新低</button>
+        <button class="tab-btn" onclick="showTab('stockQuery')">🎯 股票查詢</button>
+        <button class="tab-btn" onclick="showTab('compare')">🔧 自選比較</button>
+    </nav>
+
+    <main>
+        <!-- 總覽 -->
+        <div id="overviewTab" class="tab-content active">
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="label">📋 掛牌中CB檔數</div>
+                    <div class="value" id="statListed">-</div>
+                </div>
+                <div class="stat-card high">
+                    <div class="label">🔴 本月創新高</div>
+                    <div class="value" id="statHigh">-</div>
+                    <div class="sub" id="statHighPct"></div>
+                </div>
+                <div class="stat-card low">
+                    <div class="label">🟢 本月創新低</div>
+                    <div class="value" id="statLow">-</div>
+                    <div class="sub" id="statLowPct"></div>
+                </div>
+            </div>
+
+            <div class="event-banner" id="eventBanner"></div>
+
+            <h2 class="section-title">📈 歷史趨勢（創新高 / 創新低 佔比）</h2>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+
+            <h2 class="section-title">📌 重大事件時間軸</h2>
+            <div class="card" id="eventTimeline"></div>
+
+            <h2 class="section-title">📈 歷史統計</h2>
+            <div id="historyStats"></div>
+        </div>
+
+        <!-- 創新高 -->
+        <div id="newHighTab" class="tab-content">
+            <p class="info-text">本月相較上月（排除本月新掛牌）創下掛牌以來新高價的可轉債，依漲幅%排序。共 <strong id="newHighCount">0</strong> 檔。</p>
+            <div class="search-bar">
+                <input type="text" id="newHighSearch" placeholder="輸入CB代號或名稱篩選...">
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>序</th><th>CB代號</th><th>CB名稱</th><th>上月最高(元)</th><th>本月最高(元)</th><th>增加(元)</th><th>漲幅%</th></tr>
+                    </thead>
+                    <tbody id="newHighBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 創新低 -->
+        <div id="newLowTab" class="tab-content">
+            <p class="info-text">本月相較上月（排除本月新掛牌）創下掛牌以來新低價的可轉債，依跌幅%排序。共 <strong id="newLowCount">0</strong> 檔。</p>
+            <div class="search-bar">
+                <input type="text" id="newLowSearch" placeholder="輸入CB代號或名稱篩選...">
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>序</th><th>CB代號</th><th>CB名稱</th><th>上月最低(元)</th><th>本月最低(元)</th><th>減少(元)</th><th>跌幅%</th></tr>
+                    </thead>
+                    <tbody id="newLowBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 股票查詢 -->
+        <div id="stockQueryTab" class="tab-content">
+            <p class="info-text">輸入股票代號（4碼），列出該公司歷年所有可轉債的掛牌最高/最低價、振幅與本月異動狀態。</p>
+            <div class="search-bar">
+                <input type="text" id="stockInput" placeholder="輸入股票代號 (例如: 2383)" maxlength="6">
+                <button onclick="searchByStock()">查詢</button>
+            </div>
+            <div id="stockResult"></div>
+        </div>
+
+        <!-- 自選比較 -->
+        <div id="compareTab" class="tab-content">
+            <p class="info-text">輸入多個CB代號（以逗號、空格或換行分隔，最多50筆），並列比較掛牌最高/最低價、振幅與本月異動狀態。</p>
+            <div class="search-bar">
+                <input type="text" id="compareInput" placeholder="輸入CB代號，例如: 23836, 11011, 64725">
+                <button onclick="compareCBs()">比較</button>
+            </div>
+            <div id="compareResult"></div>
+        </div>
+    </main>
+
+    <footer>
+        <p>© 2026 Rex大叔的168台股投資教室 | CB公開資訊看板 v1.0</p>
+        <p>資料僅供參考 | 投資有風險，入市需謹慎</p>
+        <p><a href="index.html">🔍 前往 CBAS拆解查詢系統</a></p>
+    </footer>
+
+    <script>
+        let mapping = [];      // [{cb, stock}]
+        let hilo = {};         // {cb: {name, high, low, change, changePct}}
+        let monthly = [];      // [{month, listed, newHigh, newHighPct, newLow, newLowPct, event}] newest-first
+        let monthlyExtra = []; // [{label, listed, newHigh, newHighPct, newLow, newLowPct}]
+        let newHighList = [];
+        let newLowList = [];
+
+        window.addEventListener('DOMContentLoaded', loadData);
+
+        async function loadData() {
+            const status = document.getElementById('loadStatus');
+            try {
+                const res = await fetch('cb_monthly_data.xlsx');
+                if (!res.ok) throw new Error('無法載入資料檔');
+                const buf = await res.arrayBuffer();
+                const wb = XLSX.read(buf, {type: 'array'});
+
+                parseMapping(wb);
+                parseHiLo(wb);
+                parseMonthly(wb);
+                parseNewHigh(wb);
+                parseNewLow(wb);
+
+                renderHeader();
+                renderOverview();
+                renderNewHighTable();
+                renderNewLowTable();
+
+                status.textContent = `✅ 資料載入成功 | 對應CB ${Object.keys(hilo).length} 檔 | 歷史月份 ${monthly.length} 個月`;
+                status.className = 'load-status success';
+            } catch (err) {
+                status.textContent = `❌ 載入失敗: ${err.message}`;
+                status.className = 'load-status error';
+            }
+        }
+
+        // ===== 資料解析 =====
+        function parseMapping(wb) {
+            const data = XLSX.utils.sheet_to_json(wb.Sheets['對應表'], {header: 1});
+            mapping = [];
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i] || [];
+                if (row[0] == null || row[1] == null) continue;
+                mapping.push({cb: String(row[0]).trim(), stock: String(row[1]).trim()});
+            }
+        }
+
+        function parseHiLo(wb) {
+            const data = XLSX.utils.sheet_to_json(wb.Sheets['CB歷年最高最低價'], {header: 1});
+            hilo = {};
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i] || [];
+                if (row[0] == null) continue;
+                hilo[String(row[0]).trim()] = {
+                    name: row[1] || '',
+                    high: typeof row[2] === 'number' ? row[2] : null,
+                    low: typeof row[3] === 'number' ? row[3] : null,
+                    change: row[4] || '',
+                    changePct: typeof row[5] === 'number' ? row[5] : null
+                };
+            }
+        }
+
+        function parseMonthly(wb) {
+            const data = XLSX.utils.sheet_to_json(wb.Sheets['📊 本月摘要'], {header: 1});
+            monthly = [];
+            monthlyExtra = [];
+            for (let i = 4; i < data.length; i++) {
+                const row = data[i] || [];
+                const label = row[1];
+                if (typeof label !== 'string' || typeof row[2] !== 'number') continue;
+                if (/^\d+\/\d+$/.test(label)) {
+                    monthly.push({
+                        month: label,
+                        listed: row[2], newHigh: row[3], newHighPct: row[4],
+                        newLow: row[5], newLowPct: row[6], event: row[7] || ''
+                    });
+                } else {
+                    monthlyExtra.push({
+                        label: label,
+                        listed: row[2], newHigh: row[3], newHighPct: row[4],
+                        newLow: row[5], newLowPct: row[6]
+                    });
+                }
+            }
+        }
+
+        function parseNewHigh(wb) {
+            const data = XLSX.utils.sheet_to_json(wb.Sheets['🔴 創新高'], {header: 1});
+            newHighList = [];
+            for (let i = 5; i < data.length; i++) {
+                const row = data[i] || [];
+                if (typeof row[2] !== 'number') continue;
+                newHighList.push({rank: row[1], cb: String(row[2]), name: row[3] || '', prev: row[4], curr: row[5], diff: row[6], pct: row[7]});
+            }
+        }
+
+        function parseNewLow(wb) {
+            const data = XLSX.utils.sheet_to_json(wb.Sheets['🟢 創新低'], {header: 1});
+            newLowList = [];
+            for (let i = 5; i < data.length; i++) {
+                const row = data[i] || [];
+                if (typeof row[2] !== 'number') continue;
+                newLowList.push({rank: row[1], cb: String(row[2]), name: row[3] || '', prev: row[4], curr: row[5], diff: row[6], pct: row[7]});
+            }
+        }
+
+        // ===== 共用格式化函式 =====
+        function formatMonth(m) {
+            const parts = m.split('/');
+            return `${parts[0]}年${parseInt(parts[1], 10)}月`;
+        }
+        function pct(v, d = 1) {
+            return (v == null || isNaN(v)) ? '-' : (v * 100).toFixed(d) + '%';
+        }
+        function num(v, d = 2) {
+            return (v == null || isNaN(v)) ? '-' : Number(v).toFixed(d);
+        }
+        function signCls(v) {
+            if (v == null || isNaN(v)) return '';
+            return v > 0 ? 'pos' : (v < 0 ? 'neg' : '');
+        }
+        function changeBadge(c) {
+            if (c === 'H') return '<span class="badge badge-high">🔴新高</span>';
+            if (c === 'L') return '<span class="badge badge-low">🟢新低</span>';
+            if (c === 'HL') return '<span class="badge badge-both">🔴🟢</span>';
+            return '<span class="muted">-</span>';
+        }
+
+        // ===== Tab 切換 =====
+        function showTab(name) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(name + 'Tab').classList.add('active');
+            const idx = ['overview', 'newHigh', 'newLow', 'stockQuery', 'compare'].indexOf(name);
+            document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+        }
+
+        // ===== 總覽 =====
+        function renderHeader() {
+            if (monthly.length === 0) return;
+            document.getElementById('dataMonth').textContent = `資料月份：${formatMonth(monthly[0].month)}`;
+        }
+
+        function renderOverview() {
+            if (monthly.length === 0) return;
+            const cur = monthly[0];
+            document.getElementById('statListed').textContent = cur.listed;
+            document.getElementById('statHigh').textContent = `${cur.newHigh} 檔`;
+            document.getElementById('statHighPct').textContent = `佔比 ${pct(cur.newHighPct)}`;
+            document.getElementById('statLow').textContent = `${cur.newLow} 檔`;
+            document.getElementById('statLowPct').textContent = `佔比 ${pct(cur.newLowPct)}`;
+
+            const banner = document.getElementById('eventBanner');
+            if (cur.event) {
+                banner.style.display = 'block';
+                banner.textContent = `📌 本月重大事件：${cur.event}`;
+            } else {
+                banner.style.display = 'none';
+            }
+
+            renderTrendChart();
+            renderEventTimeline();
+            renderHistoryStats();
+        }
+
+        function renderTrendChart() {
+            const chrono = [...monthly].reverse();
+            const labels = chrono.map(m => m.month);
+            const highData = chrono.map(m => +(m.newHighPct * 100).toFixed(1));
+            const lowData = chrono.map(m => +(m.newLowPct * 100).toFixed(1));
+            const pointRadius = chrono.map(m => m.event ? 5 : 0);
+            const pointColors = chrono.map(m => m.event ? '#d97706' : 'transparent');
+
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '創新高佔比%',
+                            data: highData,
+                            borderColor: '#dc2626',
+                            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: pointRadius,
+                            pointBackgroundColor: pointColors,
+                            pointBorderColor: '#d97706'
+                        },
+                        {
+                            label: '創新低佔比%',
+                            data: lowData,
+                            borderColor: '#16a34a',
+                            backgroundColor: 'rgba(22, 163, 74, 0.08)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: pointRadius,
+                            pointBackgroundColor: pointColors,
+                            pointBorderColor: '#d97706'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {mode: 'index', intersect: false},
+                    plugins: {
+                        legend: {position: 'top'},
+                        tooltip: {
+                            callbacks: {
+                                afterBody: (items) => {
+                                    const idx = items[0].dataIndex;
+                                    const ev = chrono[idx].event;
+                                    return ev ? ['📌 ' + ev] : [];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {display: true, text: '佔比 (%)'},
+                            ticks: {callback: v => v + '%'}
+                        },
+                        x: {
+                            ticks: {maxRotation: 90, minRotation: 45, autoSkip: true, maxTicksLimit: 24}
+                        }
+                    }
+                }
+            });
+        }
+
+        function eventIcon(text) {
+            if (/新低|空頭|貿易戰開打|COVID/.test(text)) return '📉';
+            if (/新高/.test(text)) return '📈';
+            return '📌';
+        }
+
+        function renderEventTimeline() {
+            const events = monthly.filter(m => m.event);
+            const el = document.getElementById('eventTimeline');
+            if (events.length === 0) {
+                el.innerHTML = '<p class="muted">近期無重大事件標記</p>';
+                return;
+            }
+            el.innerHTML = events.map(e => `
+                <div class="event-item">
+                    <span class="event-month">${formatMonth(e.month)}</span>
+                    <span class="event-text">${eventIcon(e.event)} ${e.event}</span>
+                    <span class="event-stats">新高 ${pct(e.newHighPct)} ｜ 新低 ${pct(e.newLowPct)}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderHistoryStats() {
+            const el = document.getElementById('historyStats');
+            if (monthlyExtra.length === 0) {
+                el.innerHTML = '';
+                return;
+            }
+            const labelIcons = {'平均': '📊 平均', '最多': '🔝 最多', '最少': '🔻 最少'};
+            el.innerHTML = `
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>統計</th><th>掛牌檔數</th><th>新高檔數</th><th>新高佔比</th><th>新低檔數</th><th>新低佔比</th></tr>
+                        </thead>
+                        <tbody>
+                            ${monthlyExtra.map(s => `
+                                <tr>
+                                    <td>${labelIcons[s.label] || s.label}</td>
+                                    <td>${s.listed}</td>
+                                    <td>${s.newHigh}</td>
+                                    <td>${pct(s.newHighPct)}</td>
+                                    <td>${s.newLow}</td>
+                                    <td>${pct(s.newLowPct)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // ===== 創新高 / 創新低 表格 =====
+        function renderNewHighTable() {
+            document.getElementById('newHighCount').textContent = newHighList.length;
+            const draw = (filter = '') => {
+                const f = filter.trim().toLowerCase();
+                const rows = newHighList.filter(r => !f || r.cb.includes(f) || (r.name || '').toLowerCase().includes(f));
+                document.getElementById('newHighBody').innerHTML = rows.map(r => `
+                    <tr>
+                        <td>${r.rank}</td>
+                        <td><strong>${r.cb}</strong></td>
+                        <td>${r.name}</td>
+                        <td>${num(r.prev)}</td>
+                        <td>${num(r.curr)}</td>
+                        <td class="pos">+${num(r.diff)}</td>
+                        <td class="pos">${pct(r.pct)}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="7" class="muted">查無符合資料</td></tr>';
+            };
+            draw();
+            document.getElementById('newHighSearch').addEventListener('input', e => draw(e.target.value));
+        }
+
+        function renderNewLowTable() {
+            document.getElementById('newLowCount').textContent = newLowList.length;
+            const draw = (filter = '') => {
+                const f = filter.trim().toLowerCase();
+                const rows = newLowList.filter(r => !f || r.cb.includes(f) || (r.name || '').toLowerCase().includes(f));
+                document.getElementById('newLowBody').innerHTML = rows.map(r => `
+                    <tr>
+                        <td>${r.rank}</td>
+                        <td><strong>${r.cb}</strong></td>
+                        <td>${r.name}</td>
+                        <td>${num(r.prev)}</td>
+                        <td>${num(r.curr)}</td>
+                        <td class="neg">${num(r.diff)}</td>
+                        <td class="neg">${pct(r.pct)}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="7" class="muted">查無符合資料</td></tr>';
+            };
+            draw();
+            document.getElementById('newLowSearch').addEventListener('input', e => draw(e.target.value));
+        }
+
+        // ===== 股票查詢 =====
+        function searchByStock() {
+            const input = document.getElementById('stockInput').value.trim();
+            const resultDiv = document.getElementById('stockResult');
+            if (!input) { resultDiv.innerHTML = '<p class="muted">請輸入股票代號</p>'; return; }
+
+            const cbs = mapping.filter(m => m.stock === input).map(m => m.cb);
+            if (cbs.length === 0) {
+                resultDiv.innerHTML = `<p class="error">查無股票代號 ${input} 對應的可轉債</p>`;
+                return;
+            }
+
+            const rows = cbs.map(cb => {
+                const h = hilo[cb];
+                if (!h) return null;
+                const high = h.high, low = h.low;
+                const ratio = (high != null && low) ? high / low : null;
+                const ratioPct = ratio != null ? ratio - 1 : null;
+                const range = (high != null && low != null) ? high - low : null;
+                return {cb, name: h.name, high, low, ratio, ratioPct, range, change: h.change, changePct: h.changePct};
+            }).filter(Boolean);
+
+            resultDiv.innerHTML = `
+                <div class="result-summary">股票代號 ${input}，共 ${rows.length} 檔可轉債</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>序</th><th>CB代號</th><th>CB名稱</th><th>掛牌最高</th><th>掛牌最低</th><th>振幅(倍)</th><th>振幅%</th><th>區間(元)</th><th>異動</th><th>月變化%</th></tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map((r, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td><strong>${r.cb}</strong></td>
+                                    <td>${r.name}</td>
+                                    <td>${num(r.high)}</td>
+                                    <td>${num(r.low)}</td>
+                                    <td>${num(r.ratio)}</td>
+                                    <td>${pct(r.ratioPct)}</td>
+                                    <td>${num(r.range)}</td>
+                                    <td>${changeBadge(r.change)}</td>
+                                    <td class="${signCls(r.changePct)}">${pct(r.changePct)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // ===== 自選比較 =====
+        function compareCBs() {
+            const raw = document.getElementById('compareInput').value;
+            const codes = [...new Set(raw.split(/[\s,，、]+/).map(s => s.trim()).filter(Boolean))].slice(0, 50);
+            const resultDiv = document.getElementById('compareResult');
+            if (codes.length === 0) { resultDiv.innerHTML = '<p class="muted">請輸入CB代號，可用逗號或空格分隔多筆</p>'; return; }
+
+            const rows = codes.map(cb => {
+                const h = hilo[cb];
+                if (!h) return {cb, notFound: true};
+                const m = mapping.find(x => x.cb === cb);
+                const high = h.high, low = h.low;
+                const ratio = (high != null && low) ? high / low : null;
+                const ratioPct = ratio != null ? ratio - 1 : null;
+                const range = (high != null && low != null) ? high - low : null;
+                return {cb, stock: m ? m.stock : '-', name: h.name, high, low, ratio, ratioPct, range, change: h.change, changePct: h.changePct};
+            });
+
+            resultDiv.innerHTML = `
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>序</th><th>CB代號</th><th>股票代號</th><th>CB名稱</th><th>掛牌最高</th><th>掛牌最低</th><th>振幅(倍)</th><th>振幅%</th><th>區間(元)</th><th>異動</th><th>月變化%</th></tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map((r, i) => r.notFound ? `
+                                <tr><td>${i + 1}</td><td><strong>${r.cb}</strong></td><td colspan="9" class="error">查無此CB代號資料</td></tr>
+                            ` : `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td><strong>${r.cb}</strong></td>
+                                    <td>${r.stock}</td>
+                                    <td>${r.name}</td>
+                                    <td>${num(r.high)}</td>
+                                    <td>${num(r.low)}</td>
+                                    <td>${num(r.ratio)}</td>
+                                    <td>${pct(r.ratioPct)}</td>
+                                    <td>${num(r.range)}</td>
+                                    <td>${changeBadge(r.change)}</td>
+                                    <td class="${signCls(r.changePct)}">${pct(r.changePct)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
