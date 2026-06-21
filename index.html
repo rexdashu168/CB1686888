@@ -453,397 +453,255 @@
     </div>
 
     <script>
-        let excelData = null;
-        let cbListData = null;
+        let cbNames = null;      // { "23836": "台光電六", ... } — loaded on startup (~31KB)
+        let chunkCache = {};     // { "2": { "23836": [[ym, sh, tx, lo, hi, av, tm, prem], ...] } }
         let myChart = null;
-        
-        // Tab 切換
+
+        // Tab 切換 — always called explicitly so iOS Safari gets a proper repaint cycle
         function showTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            
-            if (tabName === 'single') {
-                document.getElementById('singleTab').classList.add('active');
-                document.querySelectorAll('.tab-btn')[0].classList.add('active');
-            } else if (tabName === 'chart') {
-                document.getElementById('chartTab').classList.add('active');
-                document.querySelectorAll('.tab-btn')[1].classList.add('active');
-            } else if (tabName === 'batch') {
-                document.getElementById('batchTab').classList.add('active');
-                document.querySelectorAll('.tab-btn')[2].classList.add('active');
-            } else if (tabName === 'filter') {
-                document.getElementById('filterTab').classList.add('active');
-                document.querySelectorAll('.tab-btn')[3].classList.add('active');
-            }
+            const map = { single: [0, 'singleTab'], chart: [1, 'chartTab'], batch: [2, 'batchTab'], filter: [3, 'filterTab'] };
+            const [idx, id] = map[tabName];
+            document.getElementById(id).classList.add('active');
+            document.querySelectorAll('.tab-btn')[idx].classList.add('active');
         }
-        
-        // 漸層色彩計算函數 - 綠到紅
+
+        // 漸層色彩
         function getGradientClass(value, min, max) {
-            const range = max - min;
-            const normalized = (value - min) / range;
-            
-            if (normalized < 0.2) return 'gradient-green-red-1';
-            if (normalized < 0.4) return 'gradient-green-red-2';
-            if (normalized < 0.6) return 'gradient-green-red-3';
-            if (normalized < 0.8) return 'gradient-green-red-4';
+            const norm = max === min ? 0 : (value - min) / (max - min);
+            if (norm < 0.2) return 'gradient-green-red-1';
+            if (norm < 0.4) return 'gradient-green-red-2';
+            if (norm < 0.6) return 'gradient-green-red-3';
+            if (norm < 0.8) return 'gradient-green-red-4';
             return 'gradient-green-red-5';
         }
-        
-        // 載入資料
-        window.onload = function() {
-            loadExcelFile();
-        };
-        
-        async function loadExcelFile() {
+
+        // 月份key → 顯示字串
+        function convertYM(key) {
+            let year, month;
+            if (key.length === 5) {
+                year = parseInt(key.substring(0, 3));
+                month = parseInt(key.substring(3, 5));
+            } else {
+                year = parseInt(key.substring(0, 4)) - 1911;
+                month = parseInt(key.substring(4, 6));
+            }
+            return `${year}/${month.toString().padStart(2, '0')}`;
+        }
+
+        // 啟動：只載入 31KB 索引，不載入全部資料
+        window.addEventListener('DOMContentLoaded', function () {
+            showTab('single'); // 強制初始化讓 iOS Safari 正確渲染
+            loadIndex();
+        });
+
+        async function loadIndex() {
             const banner = document.getElementById('loadingBanner');
             const loadBtn = document.getElementById('loadDataBtn');
-
             try {
-                const response = await fetch('cbas_data.json');
-                if (!response.ok) throw new Error('無法載入檔案');
-
-                const jsonData = await response.json();
-                cbListData = jsonData.cbList;
-                const cbCount = cbListData.length - 1;
-
-                excelData = jsonData.monthly;
-                const months = Object.keys(excelData).filter(n => /^\d{5,6}$/.test(n));
-                const monthCount = months.length;
-                
-                months.sort();
-                const firstMonth = convertYM(months[0]);
-                const lastMonth = convertYM(months[months.length - 1]);
-                
+                const res = await fetch('cbas_index.json');
+                if (!res.ok) throw new Error('無法載入索引');
+                const json = await res.json();
+                cbNames = json.names;
+                const count = Object.keys(cbNames).length;
                 banner.className = 'loading-banner success';
-                banner.textContent = `✅ 資料載入成功 | CB清單: ${cbCount} 個 | 月份資料: ${monthCount} 個月 | 範圍: ${firstMonth} ~ ${lastMonth}`;
-                
-                loadBtn.textContent = '✅ 載入完成';
+                banner.textContent = `✅ 系統就緒 | 共 ${count} 個CB | 輸入代號即可查詢`;
+                loadBtn.textContent = '✅ 系統就緒';
                 loadBtn.style.background = 'rgba(40, 167, 69, 0.3)';
-                
-            } catch (error) {
+            } catch (err) {
                 banner.className = 'loading-banner';
                 banner.style.background = '#f8d7da';
                 banner.style.borderColor = '#dc3545';
                 banner.style.color = '#721c24';
-                banner.textContent = `❌ 載入失敗: ${error.message}`;
-                
+                banner.textContent = `❌ 載入失敗: ${err.message}`;
                 loadBtn.textContent = '❌ 載入失敗';
                 loadBtn.style.background = 'rgba(220, 53, 69, 0.3)';
             }
         }
-        
-        function convertYM(sheetName) {
-            let year, month;
-            if (sheetName.length === 5) {
-                year = parseInt(sheetName.substring(0, 3));
-                month = parseInt(sheetName.substring(3, 5));
-            } else {
-                year = parseInt(sheetName.substring(0, 4)) - 1911;
-                month = parseInt(sheetName.substring(4, 6));
-            }
-            return `${year}/${month.toString().padStart(2, '0')}`;
+
+        // 按需載入對應分片 (最大 231KB)
+        async function loadChunk(code) {
+            const digit = code[0];
+            if (chunkCache[digit]) return chunkCache[digit];
+            const res = await fetch(`cbas_chunk_${digit}.json`);
+            if (!res.ok) throw new Error(`無法載入資料分片 ${digit}`);
+            chunkCache[digit] = await res.json();
+            return chunkCache[digit];
         }
-        
+
+        // 強制 iOS Safari 重繪
+        function forceRepaint(el) {
+            el.style.webkitTransform = 'translateZ(0)';
+            requestAnimationFrame(() => { el.style.webkitTransform = ''; });
+        }
+
         // 單檔查詢
-        function searchSingle() {
+        async function searchSingle() {
             const cbCode = document.getElementById('cbCode1').value.trim();
             if (!cbCode) { alert('請輸入CB代號'); return; }
-            if (!excelData) { alert('資料尚未載入'); return; }
-            
-            document.getElementById('result1').innerHTML = '<div class="loading">查詢中...</div>';
-            
-            setTimeout(() => {
-                try {
-                    let cbName = '';
-                    for (let i = 1; i < cbListData.length; i++) {
-                        if (String(cbListData[i][1]).trim() === String(cbCode).trim()) {
-                            cbName = cbListData[i][2];
-                            break;
-                        }
-                    }
-                    
-                    if (!cbName) {
-                        document.getElementById('result1').innerHTML = '<div class="error-message"><h3>找不到CB代號: ' + cbCode + '</h3></div>';
-                        return;
-                    }
-                    
-                    const results = [];
-                    const months = Object.keys(excelData).sort();
-                    
-                    months.forEach(month => {
-                        const data = excelData[month];
-                        for (let i = 1; i < data.length; i++) {
-                            if (String(data[i][0]).trim() === String(cbCode).trim()) {
-                                const notional = data[i][2] || 0;
-                                const shares = Math.floor(notional / 100000);
-                                const avg = data[i][6] || 0;
-                                const premium = Math.round((avg * notional / 100000 / 10000));
-                                
-                                results.push({
-                                    yearMonth: convertYM(month),
-                                    shares: shares,
-                                    transactions: data[i][3] || 0,
-                                    lowest: data[i][4] || 0,
-                                    highest: data[i][5] || 0,
-                                    average: avg,
-                                    term: data[i][7] || 0,
-                                    premium: premium
-                                });
-                            }
-                        }
-                    });
-                    
-                    if (results.length === 0) {
-                        document.getElementById('result1').innerHTML = '<div class="error-message"><h3>查無資料: ' + cbCode + ' ' + cbName + '</h3></div>';
-                        return;
-                    }
-                    
-                    // 計算數值範圍用於漸層色 - 只計算需要漸層的欄位
-                    const sharesValues = results.map(r => r.shares);
-                    const lowestValues = results.map(r => r.lowest);
-                    const highestValues = results.map(r => r.highest);
-                    const avgValues = results.map(r => r.average);
-                    
-                    const sharesMin = Math.min(...sharesValues);
-                    const sharesMax = Math.max(...sharesValues);
-                    const lowestMin = Math.min(...lowestValues);
-                    const lowestMax = Math.max(...lowestValues);
-                    const highestMin = Math.min(...highestValues);
-                    const highestMax = Math.max(...highestValues);
-                    const avgMin = Math.min(...avgValues);
-                    const avgMax = Math.max(...avgValues);
-                    
-                    let html = `
-                        <div class="result-header">
-                            <h2>【查詢結果: ${cbCode} ${cbName}】</h2>
-                            <div class="result-info">找到 ${results.length} 筆資料 | ${results[0].yearMonth} ~ ${results[results.length-1].yearMonth}</div>
-                        </div>
-                        <div class="table-wrapper">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>年月</th>
-                                        <th>拆解張數</th>
-                                        <th>成交筆數</th>
-                                        <th>最低<br>權利金(元)</th>
-                                        <th>最高<br>權利金(元)</th>
-                                        <th>平均<br>權利金(元)</th>
-                                        <th>契約<br>期間</th>
-                                        <th>權利金<br>(萬元)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                    `;
-                    
-                    results.forEach(r => {
-                        const sharesGradient = getGradientClass(r.shares, sharesMin, sharesMax);
-                        const lowestGradient = getGradientClass(r.lowest, lowestMin, lowestMax);
-                        const highestGradient = getGradientClass(r.highest, highestMin, highestMax);
-                        const avgGradient = getGradientClass(r.average, avgMin, avgMax);
-                        
-                        html += `
-                            <tr>
-                                <td><strong>${r.yearMonth}</strong></td>
-                                <td class="${sharesGradient}">${r.shares.toLocaleString()}</td>
-                                <td>${r.transactions.toLocaleString()}</td>
-                                <td class="${lowestGradient}">${r.lowest.toFixed(2)}</td>
-                                <td class="${highestGradient}">${r.highest.toFixed(2)}</td>
-                                <td class="${avgGradient}">${r.average.toFixed(2)}</td>
-                                <td><span class="term-badge term-${r.term}">${r.term}年</span></td>
-                                <td><strong>${r.premium.toLocaleString()}</strong></td>
-                            </tr>
-                        `;
-                    });
-                    
-                    html += '</tbody></table></div>';
-                    document.getElementById('result1').innerHTML = html;
-                    
-                } catch (error) {
-                    document.getElementById('result1').innerHTML = '<div class="error-message"><h3>搜尋錯誤: ' + error.message + '</h3></div>';
+            if (!cbNames) { alert('系統尚未就緒，請稍候'); return; }
+
+            const cbName = cbNames[cbCode];
+            if (!cbName) {
+                document.getElementById('result1').innerHTML = `<div class="error-message"><h3>找不到CB代號: ${cbCode}</h3></div>`;
+                return;
+            }
+
+            const r1 = document.getElementById('result1');
+            r1.innerHTML = '<div class="loading">載入資料中...</div>';
+
+            try {
+                const chunk = await loadChunk(cbCode);
+                const rows = chunk[cbCode];
+                if (!rows || rows.length === 0) {
+                    r1.innerHTML = `<div class="error-message"><h3>查無資料: ${cbCode} ${cbName}</h3></div>`;
+                    return;
                 }
-            }, 300);
+
+                // rows: [ym, shares, tx, lo, hi, av, tm, premium]
+                const sharesArr = rows.map(r => r[1]);
+                const loArr    = rows.map(r => r[3]);
+                const hiArr    = rows.map(r => r[4]);
+                const avArr    = rows.map(r => r[5]);
+
+                const sMin = Math.min(...sharesArr), sMax = Math.max(...sharesArr);
+                const lMin = Math.min(...loArr),     lMax = Math.max(...loArr);
+                const hMin = Math.min(...hiArr),     hMax = Math.max(...hiArr);
+                const aMin = Math.min(...avArr),     aMax = Math.max(...avArr);
+
+                let html = `
+                    <div class="result-header">
+                        <h2>【查詢結果: ${cbCode} ${cbName}】</h2>
+                        <div class="result-info">找到 ${rows.length} 筆資料 | ${convertYM(rows[0][0])} ~ ${convertYM(rows[rows.length-1][0])}</div>
+                    </div>
+                    <div class="table-wrapper"><table>
+                        <thead><tr>
+                            <th>年月</th><th>拆解張數</th><th>成交筆數</th>
+                            <th>最低<br>權利金(元)</th><th>最高<br>權利金(元)</th>
+                            <th>平均<br>權利金(元)</th><th>契約<br>期間</th><th>權利金<br>(萬元)</th>
+                        </tr></thead><tbody>`;
+
+                rows.forEach(r => {
+                    html += `<tr>
+                        <td><strong>${convertYM(r[0])}</strong></td>
+                        <td class="${getGradientClass(r[1],sMin,sMax)}">${r[1].toLocaleString()}</td>
+                        <td>${r[2].toLocaleString()}</td>
+                        <td class="${getGradientClass(r[3],lMin,lMax)}">${r[3].toFixed(2)}</td>
+                        <td class="${getGradientClass(r[4],hMin,hMax)}">${r[4].toFixed(2)}</td>
+                        <td class="${getGradientClass(r[5],aMin,aMax)}">${r[5].toFixed(2)}</td>
+                        <td><span class="term-badge term-${r[6]}">${r[6]}年</span></td>
+                        <td><strong>${r[7].toLocaleString()}</strong></td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table></div>';
+                r1.innerHTML = html;
+                forceRepaint(r1);
+
+            } catch (err) {
+                r1.innerHTML = `<div class="error-message"><h3>搜尋錯誤: ${err.message}</h3></div>`;
+            }
         }
-        
-        // 價格走勢圖 - 雙軸圖表 (折線+柱狀) - 字體放大
-        function searchChart() {
+
+        // 價格走勢圖
+        async function searchChart() {
             const cbCode = document.getElementById('cbCode2').value.trim();
             if (!cbCode) { alert('請輸入CB代號'); return; }
-            if (!excelData) { alert('資料尚未載入'); return; }
-            
-            document.getElementById('result2').innerHTML = '<div class="loading">查詢中...</div>';
-            
-            setTimeout(() => {
-                try {
-                    let cbName = '';
-                    for (let i = 1; i < cbListData.length; i++) {
-                        if (String(cbListData[i][1]).trim() === String(cbCode).trim()) {
-                            cbName = cbListData[i][2];
-                            break;
-                        }
-                    }
-                    
-                    if (!cbName) {
-                        document.getElementById('result2').innerHTML = '<div class="error-message"><h3>找不到CB代號: ' + cbCode + '</h3></div>';
-                        return;
-                    }
-                    
-                    const results = [];
-                    const months = Object.keys(excelData).sort();
-                    
-                    months.forEach(month => {
-                        const data = excelData[month];
-                        for (let i = 1; i < data.length; i++) {
-                            if (String(data[i][0]).trim() === String(cbCode).trim()) {
-                                const notional = data[i][2] || 0;
-                                const shares = Math.floor(notional / 100000);
-                                results.push({
-                                    yearMonth: convertYM(month),
-                                    average: data[i][6] || 0,
-                                    shares: shares
-                                });
-                            }
-                        }
-                    });
-                    
-                    if (results.length === 0) {
-                        document.getElementById('result2').innerHTML = '<div class="error-message"><h3>查無資料: ' + cbCode + ' ' + cbName + '</h3></div>';
-                        return;
-                    }
-                    
-                    document.getElementById('result2').innerHTML = `
-                        <div class="result-header">
-                            <h2>【價格走勢: ${cbCode} ${cbName}】</h2>
-                            <div class="result-info">資料筆數: ${results.length} | ${results[0].yearMonth} ~ ${results[results.length-1].yearMonth}</div>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="priceChart"></canvas>
-                        </div>
-                    `;
-                    
-                    const labels = results.map(r => r.yearMonth);
-                    const avgData = results.map(r => r.average);
-                    const sharesData = results.map(r => r.shares);
-                    const ctx = document.getElementById('priceChart').getContext('2d');
-                    
-                    if (myChart) myChart.destroy();
-                    
-                    myChart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [
-                                {
-                                    type: 'line',
-                                    label: '平均權利金(元)',
-                                    data: avgData,
-                                    borderColor: '#667eea',
-                                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                                    borderWidth: 4,
-                                    tension: 0.4,
-                                    fill: false,
-                                    pointRadius: 7,
-                                    pointHoverRadius: 10,
-                                    pointBackgroundColor: '#667eea',
-                                    pointBorderColor: '#fff',
-                                    pointBorderWidth: 3,
-                                    yAxisID: 'y'
-                                },
-                                {
-                                    type: 'bar',
-                                    label: '拆解張數',
-                                    data: sharesData,
-                                    backgroundColor: 'rgba(102, 126, 234, 0.3)',
-                                    borderColor: 'rgba(102, 126, 234, 0.5)',
-                                    borderWidth: 1,
-                                    yAxisID: 'y1'
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: {
-                                mode: 'index',
-                                intersect: false
-                            },
-                            plugins: {
-                                legend: { 
-                                    position: 'top',
-                                    labels: { 
-                                        font: { size: 18, family: "'Microsoft JhengHei', Arial", weight: 'bold' },
-                                        padding: 20
-                                    }
-                                },
-                                tooltip: {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                                    padding: 15,
-                                    titleFont: { size: 16, weight: 'bold' },
-                                    bodyFont: { size: 15 },
-                                    callbacks: {
-                                        label: function(context) {
-                                            if (context.dataset.label === '平均權利金(元)') {
-                                                return '平均權利金: ' + context.parsed.y.toFixed(2) + ' 元';
-                                            } else {
-                                                return '拆解張數: ' + context.parsed.y.toLocaleString() + ' 張';
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    type: 'linear',
-                                    position: 'left',
-                                    beginAtZero: false,
-                                    title: { 
-                                        display: true, 
-                                        text: '平均權利金(元)',
-                                        font: { size: 17, family: "'Microsoft JhengHei', Arial", weight: 'bold' }
-                                    },
-                                    ticks: {
-                                        font: { size: 14 },
-                                        callback: value => value.toFixed(2)
-                                    }
-                                },
-                                y1: {
-                                    type: 'linear',
-                                    position: 'right',
-                                    beginAtZero: true,
-                                    title: { 
-                                        display: true, 
-                                        text: '拆解張數',
-                                        font: { size: 17, family: "'Microsoft JhengHei', Arial", weight: 'bold' }
-                                    },
-                                    ticks: {
-                                        font: { size: 14 },
-                                        callback: value => value.toLocaleString()
-                                    },
-                                    grid: {
-                                        drawOnChartArea: false
-                                    }
-                                },
-                                x: {
-                                    title: { 
-                                        display: true, 
-                                        text: '年月',
-                                        font: { size: 17, family: "'Microsoft JhengHei', Arial", weight: 'bold' }
-                                    },
-                                    ticks: { 
-                                        font: { size: 13 },
-                                        maxRotation: 45, 
-                                        minRotation: 45 
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    
-                } catch (error) {
-                    document.getElementById('result2').innerHTML = '<div class="error-message"><h3>搜尋錯誤: ' + error.message + '</h3></div>';
+            if (!cbNames) { alert('系統尚未就緒，請稍候'); return; }
+
+            const cbName = cbNames[cbCode];
+            if (!cbName) {
+                document.getElementById('result2').innerHTML = `<div class="error-message"><h3>找不到CB代號: ${cbCode}</h3></div>`;
+                return;
+            }
+
+            const r2 = document.getElementById('result2');
+            r2.innerHTML = '<div class="loading">載入資料中...</div>';
+
+            try {
+                const chunk = await loadChunk(cbCode);
+                const rows = chunk[cbCode];
+                if (!rows || rows.length === 0) {
+                    r2.innerHTML = `<div class="error-message"><h3>查無資料: ${cbCode} ${cbName}</h3></div>`;
+                    return;
                 }
-            }, 300);
+
+                r2.innerHTML = `
+                    <div class="result-header">
+                        <h2>【價格走勢: ${cbCode} ${cbName}】</h2>
+                        <div class="result-info">資料筆數: ${rows.length} | ${convertYM(rows[0][0])} ~ ${convertYM(rows[rows.length-1][0])}</div>
+                    </div>
+                    <div class="chart-container"><canvas id="priceChart"></canvas></div>`;
+
+                forceRepaint(r2);
+
+                const labels     = rows.map(r => convertYM(r[0]));
+                const avgData    = rows.map(r => r[5]);
+                const sharesData = rows.map(r => r[1]);
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                if (myChart) myChart.destroy();
+
+                myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            {
+                                type: 'line', label: '平均權利金(元)', data: avgData,
+                                borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)',
+                                borderWidth: 4, tension: 0.4, fill: false,
+                                pointRadius: 7, pointHoverRadius: 10,
+                                pointBackgroundColor: '#667eea', pointBorderColor: '#fff', pointBorderWidth: 3,
+                                yAxisID: 'y'
+                            },
+                            {
+                                type: 'bar', label: '拆解張數', data: sharesData,
+                                backgroundColor: 'rgba(102,126,234,0.3)', borderColor: 'rgba(102,126,234,0.5)',
+                                borderWidth: 1, yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'top', labels: { font: { size: 18, family: "'Microsoft JhengHei',Arial", weight: 'bold' }, padding: 20 } },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.85)', padding: 15,
+                                titleFont: { size: 16, weight: 'bold' }, bodyFont: { size: 15 },
+                                callbacks: {
+                                    label: ctx => ctx.dataset.label === '平均權利金(元)'
+                                        ? '平均權利金: ' + ctx.parsed.y.toFixed(2) + ' 元'
+                                        : '拆解張數: ' + ctx.parsed.y.toLocaleString() + ' 張'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear', position: 'left', beginAtZero: false,
+                                title: { display: true, text: '平均權利金(元)', font: { size: 17, family: "'Microsoft JhengHei',Arial", weight: 'bold' } },
+                                ticks: { font: { size: 14 }, callback: v => v.toFixed(2) }
+                            },
+                            y1: {
+                                type: 'linear', position: 'right', beginAtZero: true,
+                                title: { display: true, text: '拆解張數', font: { size: 17, family: "'Microsoft JhengHei',Arial", weight: 'bold' } },
+                                ticks: { font: { size: 14 }, callback: v => v.toLocaleString() },
+                                grid: { drawOnChartArea: false }
+                            },
+                            x: {
+                                title: { display: true, text: '年月', font: { size: 17, family: "'Microsoft JhengHei',Arial", weight: 'bold' } },
+                                ticks: { font: { size: 13 }, maxRotation: 45, minRotation: 45 }
+                            }
+                        }
+                    }
+                });
+
+            } catch (err) {
+                r2.innerHTML = `<div class="error-message"><h3>搜尋錯誤: ${err.message}</h3></div>`;
+            }
         }
-        
+
         // Enter 鍵搜尋
         document.getElementById('cbCode1').addEventListener('keypress', e => { if (e.key === 'Enter') searchSingle(); });
         document.getElementById('cbCode2').addEventListener('keypress', e => { if (e.key === 'Enter') searchChart(); });
