@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CB公開資訊看板 - Rex大叔的168台股投資教室</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         :root {
@@ -434,10 +433,9 @@
         async function loadData() {
             const status = document.getElementById('loadStatus');
             try {
-                const res = await fetch('cb_monthly_data.xlsx');
+                const res = await fetch('cb_monthly_data.json');
                 if (!res.ok) throw new Error('無法載入資料檔');
-                const buf = await res.arrayBuffer();
-                const wb = XLSX.read(buf, {type: 'array'});
+                const wb = await res.json();
 
                 parseMapping(wb);
                 parseHiLo(wb);
@@ -460,7 +458,7 @@
 
         // ===== 資料解析 =====
         function parseMapping(wb) {
-            const data = XLSX.utils.sheet_to_json(wb.Sheets['對應表'], {header: 1});
+            const data = wb['對應表'];
             mapping = [];
             for (let i = 1; i < data.length; i++) {
                 const row = data[i] || [];
@@ -470,7 +468,7 @@
         }
 
         function parseHiLo(wb) {
-            const data = XLSX.utils.sheet_to_json(wb.Sheets['CB歷年最高最低價'], {header: 1});
+            const data = wb['CB歷年最高最低價'];
             hilo = {};
             for (let i = 1; i < data.length; i++) {
                 const row = data[i] || [];
@@ -486,7 +484,7 @@
         }
 
         function parseMonthly(wb) {
-            const data = XLSX.utils.sheet_to_json(wb.Sheets['📊 本月摘要'], {header: 1});
+            const data = wb['📊 本月摘要'];
             monthly = [];
             monthlyExtra = [];
             for (let i = 4; i < data.length; i++) {
@@ -510,7 +508,7 @@
         }
 
         function parseNewHigh(wb) {
-            const data = XLSX.utils.sheet_to_json(wb.Sheets['🔴 創新高'], {header: 1});
+            const data = wb['🔴 創新高'];
             newHighList = [];
             for (let i = 5; i < data.length; i++) {
                 const row = data[i] || [];
@@ -520,7 +518,7 @@
         }
 
         function parseNewLow(wb) {
-            const data = XLSX.utils.sheet_to_json(wb.Sheets['🟢 創新低'], {header: 1});
+            const data = wb['🟢 創新低'];
             newLowList = [];
             for (let i = 5; i < data.length; i++) {
                 const row = data[i] || [];

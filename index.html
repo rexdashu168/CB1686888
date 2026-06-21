@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CBAS分析系統 - Rex大叔的168台股投資教室</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -498,31 +497,18 @@
         async function loadExcelFile() {
             const banner = document.getElementById('loadingBanner');
             const loadBtn = document.getElementById('loadDataBtn');
-            
+
             try {
-                const response = await fetch('cbas_list.xlsx');
+                const response = await fetch('cbas_data.json');
                 if (!response.ok) throw new Error('無法載入檔案');
-                
-                const arrayBuffer = await response.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
-                
-                const cbListSheet = workbook.Sheets['全部CB代號'];
-                cbListData = XLSX.utils.sheet_to_json(cbListSheet, {header: 1});
+
+                const jsonData = await response.json();
+                cbListData = jsonData.cbList;
                 const cbCount = cbListData.length - 1;
-                
-                excelData = {};
-                let monthCount = 0;
-                const months = [];
-                
-                workbook.SheetNames.forEach(sheetName => {
-                    if (/^\d{5,6}$/.test(sheetName)) {
-                        const sheet = workbook.Sheets[sheetName];
-                        const data = XLSX.utils.sheet_to_json(sheet, {header: 1});
-                        excelData[sheetName] = data;
-                        monthCount++;
-                        months.push(sheetName);
-                    }
-                });
+
+                excelData = jsonData.monthly;
+                const months = Object.keys(excelData).filter(n => /^\d{5,6}$/.test(n));
+                const monthCount = months.length;
                 
                 months.sort();
                 const firstMonth = convertYM(months[0]);
