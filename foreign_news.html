@@ -50,6 +50,7 @@
             max-width: 900px;
             margin: 24px auto;
             padding: 0 16px;
+            padding-bottom: 80px;
         }
 
         /* ── Title bar ── */
@@ -182,7 +183,6 @@
             margin-bottom: 10px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.07);
             border-left: 4px solid transparent;
-            cursor: pointer;
             transition: box-shadow 0.2s, border-color 0.2s;
         }
         .report-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); border-left-color: #2563eb; }
@@ -190,7 +190,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
         }
         .report-date { font-size: 0.82em; color: #6b7280; }
@@ -205,21 +205,60 @@
         .badge-stock { background: #dbeafe; color: #1d4ed8; }
         .badge-industry { background: #d1fae5; color: #065f46; }
         .stars { color: #f59e0b; font-size: 0.88em; letter-spacing: 1px; }
-        .stock-tag {
-            font-size: 0.78em;
-            color: #fff;
-            background: #64748b;
-            padding: 2px 8px;
+
+        /* ── 區間報酬區塊 ── */
+        .price-block {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
             border-radius: 8px;
-            font-weight: 600;
+            padding: 10px 14px;
+            margin-bottom: 12px;
         }
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .price-stock-info {
+            font-size: 0.92em;
+            font-weight: 700;
+            color: #1e3a5f;
+        }
+        .price-stock-code {
+            font-size: 0.85em;
+            color: #64748b;
+            margin-left: 6px;
+            font-weight: 400;
+        }
+        .price-pct {
+            font-size: 1em;
+            font-weight: 700;
+        }
+        .price-pct.up { color: #16a34a; }
+        .price-pct.down { color: #dc2626; }
+        .price-detail {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 0.82em;
+            color: #6b7280;
+        }
+        .price-values { letter-spacing: 0.3px; }
+        .price-period { color: #9ca3af; }
+        .price-loading { font-size: 0.8em; color: #9ca3af; }
+        .price-na { font-size: 0.8em; color: #d1d5db; }
+
+        /* ── Report content ── */
         .report-title {
             font-size: 1.02em;
             font-weight: bold;
             color: #1e3a5f;
             margin-bottom: 6px;
             line-height: 1.4;
+            cursor: pointer;
         }
+        .report-title:hover { text-decoration: underline; }
         .report-excerpt {
             font-size: 0.88em;
             color: #4b5563;
@@ -228,9 +267,8 @@
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            cursor: pointer;
         }
-
-        /* ── Expanded content ── */
         .report-full {
             display: none;
             font-size: 0.9em;
@@ -244,15 +282,18 @@
 
         /* ── Stock query bar ── */
         .stock-query {
-            position: sticky;
+            position: fixed;
             bottom: 0;
+            left: 0;
+            right: 0;
             background: #fff;
             border-top: 1px solid #e5e7eb;
-            padding: 12px 16px;
+            padding: 10px 16px;
             display: flex;
             gap: 10px;
             align-items: center;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+            z-index: 100;
         }
         .stock-query input {
             flex: 1;
@@ -273,19 +314,22 @@
             font-size: 0.9em;
             font-family: inherit;
             cursor: pointer;
+            white-space: nowrap;
         }
-        .stock-query .hint { font-size: 0.8em; color: #9ca3af; text-align: center; margin-top: 4px; }
+        .stock-query .hint {
+            font-size: 0.75em;
+            color: #9ca3af;
+            white-space: nowrap;
+        }
 
-        /* ── Empty state ── */
+        /* ── Empty / Footer ── */
         .empty { text-align: center; padding: 60px 20px; color: #9ca3af; font-size: 1em; }
-
-        /* ── Footer ── */
         footer {
             text-align: center;
             padding: 20px;
             font-size: 0.85em;
             color: #9ca3af;
-            margin-top: 40px;
+            margin-top: 20px;
             border-top: 1px solid #e5e7eb;
         }
 
@@ -293,6 +337,7 @@
             .title-bar h2 { font-size: 1.3em; }
             .report-card { padding: 13px 14px; }
             .search-bar { flex-direction: column; }
+            .price-detail { flex-wrap: wrap; gap: 6px; }
         }
     </style>
 </head>
@@ -319,24 +364,16 @@
     </div>
 
     <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="搜尋公司、代號、關鍵字、標籤...">
+        <input type="text" id="searchInput" placeholder="搜尋公司、代號、關鍵字...">
         <button onclick="applyFilters()">搜尋</button>
     </div>
 
-    <!-- Category tabs -->
     <div class="cat-tabs">
-        <button class="cat-tab active" data-cat="all" onclick="setCat(this)">
-            全部 <span class="count" id="countAll"></span>
-        </button>
-        <button class="cat-tab" data-cat="stock" onclick="setCat(this)">
-            個股外電 <span class="count" id="countStock"></span>
-        </button>
-        <button class="cat-tab" data-cat="industry" onclick="setCat(this)">
-            產業觀察 <span class="count" id="countIndustry"></span>
-        </button>
+        <button class="cat-tab active" data-cat="all" onclick="setCat(this)">全部 <span class="count" id="countAll"></span></button>
+        <button class="cat-tab" data-cat="stock" onclick="setCat(this)">個股外電 <span class="count" id="countStock"></span></button>
+        <button class="cat-tab" data-cat="industry" onclick="setCat(this)">產業觀察 <span class="count" id="countIndustry"></span></button>
     </div>
 
-    <!-- Star filter -->
     <div class="filter-row">
         <span class="filter-label">星等</span>
         <button class="filter-btn active" data-star="0" onclick="setStar(this)">全部</button>
@@ -345,7 +382,6 @@
         <button class="filter-btn" data-star="3" onclick="setStar(this)">★★★☆☆</button>
     </div>
 
-    <!-- Time filter -->
     <div class="filter-row">
         <span class="filter-label">時間</span>
         <button class="filter-btn active" data-days="0" onclick="setDays(this)">全部</button>
@@ -355,27 +391,27 @@
 
     <div class="results-summary" id="resultsSummary"></div>
     <div id="reportList"></div>
+
+    <footer>
+        © 2025 Rex大叔的168台股投資教室 | 股價資料來源：台灣證券交易所 TWSE Open API | 資料僅供參考，投資有風險，入市需謹慎
+    </footer>
 </div>
 
-<!-- Sticky stock query bar -->
 <div class="stock-query">
     <input type="text" id="stockInput" placeholder="輸入個股代號或名稱..." maxlength="10">
     <button onclick="filterByStock()">查詢</button>
+    <span class="hint">僅供研究參考</span>
 </div>
-<div class="hint" style="text-align:center;font-size:0.8em;color:#9ca3af;padding:4px 0 8px;">僅供研究參考</div>
-
-<footer>
-    © 2025 Rex大叔的168台股投資教室 | 外電報導 | 資料僅供參考，投資有風險，入市需謹慎
-</footer>
 
 <script>
-// ── 報導資料 ──────────────────────────────────────────────────────────────────
-// 新增報導：在 reports 陣列中照格式加入即可
+// ════════════════════════════════════════════════════
+// 報導資料
 // cat: "stock"=個股外電, "industry"=產業觀察
-// stars: 1~5
-// date: "YYYY/MM/DD"
-// stockCode: 股票代號 (個股報導填入，產業觀察可留空)
-// ─────────────────────────────────────────────────────────────────────────────
+// stars: 1~5    date: "YYYY/MM/DD"
+// stockCode: 股票代號（上市/上櫃4碼，空字串則不顯示股價）
+// stockName: 股票名稱（顯示用）
+// market: "twse"=上市(預設), "tpex"=上櫃
+// ════════════════════════════════════════════════════
 const reports = [
     {
         date: "2026/06/11",
@@ -383,8 +419,10 @@ const reports = [
         cat: "industry",
         stars: 5,
         stockCode: "",
+        stockName: "",
+        market: "twse",
         title: "800V DC delay 澄清一 美系大行",
-        excerpt: "美系大行表示這消息與他們的通路訪查結果完全相反。在上週Nvidia GTC Taipei已報告800V準備好要在3Q26要進入量產，同時券商更看到台達電為第一家將在4Q26出貨800V DC獨立電力機櫃給一家北美Hyperscaler的供應商。初期量當然不會大，但至少方向與時程是明確的。券商重申看好台達電的投資評等。",
+        excerpt: "美系大行表示這消息與他們的通路訪查結果完全相反。在上週Nvidia GTC Taipei已報告800V準備好要在3Q26要進入量產，同時券商更看到台達電為第一家將在4Q26出貨800V DC獨立電力機櫃給一家北美Hyperscaler的供應商。初期量當然不會大，但至少方向與時程是明確的。",
         full: "美系大行表示這消息與他們的通路訪查結果完全相反。在上週Nvidia GTC Taipei已報告800V準備好要在3Q26要進入量產，同時券商更看到台達電為第一家將在4Q26出貨800V DC獨立電力機櫃給一家北美Hyperscaler的供應商。初期量當然不會大，但至少方向與時程是明確的。券商重申對台達電維持買進評等，目標價維持不變。"
     },
     {
@@ -393,6 +431,8 @@ const reports = [
         cat: "stock",
         stars: 5,
         stockCode: "2330",
+        stockName: "台積電",
+        market: "twse",
         title: "台積電 CoWoS需求持續強勁，上調目標價",
         excerpt: "外資券商指出台積電CoWoS先進封裝產能持續供不應求，AI伺服器相關需求強勁支撐2026年營收展望。維持買進評等，目標價由1200元上調至1350元。",
         full: "外資券商指出台積電CoWoS先進封裝產能持續供不應求，AI伺服器相關需求強勁支撐2026年營收展望。N2製程客戶認證進度超出預期，有望提前量產。目標價由1200元上調至1350元，維持買進評等。"
@@ -403,9 +443,11 @@ const reports = [
         cat: "industry",
         stars: 4,
         stockCode: "",
+        stockName: "",
+        market: "twse",
         title: "AI PCB族群：散熱基板需求超預期，族群評等上調",
         excerpt: "日系外資上調AI PCB族群評等，指出AI伺服器散熱基板（散熱塗層、複合銅箔）需求遠超市場預期，台灣供應鏈在此領域具備明顯優勢。",
-        full: "日系外資上調AI PCB族群評等，指出AI伺服器散熱基板（散熱塗層、複合銅箔）需求遠超市場預期。台廠包含健鼎、欣興具備明顯優勢，預估2026年相關產品營收年增40%以上。"
+        full: "日系外資上調AI PCB族群評等，指出AI伺服器散熱基板需求遠超市場預期。台廠包含健鼎、欣興具備明顯優勢，預估2026年相關產品營收年增40%以上。"
     },
     {
         date: "2026/06/09",
@@ -413,6 +455,8 @@ const reports = [
         cat: "stock",
         stars: 5,
         stockCode: "2317",
+        stockName: "鴻海",
+        market: "twse",
         title: "鴻海：AI伺服器出貨展望上調，GB200機架組裝份額擴大",
         excerpt: "美系券商上調鴻海2026年AI伺服器出貨量預估，GB200 NVL72機架組裝份額超預期，維持買進，目標價230元。",
         full: "美系券商上調鴻海2026年AI伺服器出貨量預估，GB200 NVL72機架組裝份額超預期達到35%，預計2026年AI伺服器收入年增75%。維持買進評等，目標價由210元上調至230元。"
@@ -423,6 +467,8 @@ const reports = [
         cat: "industry",
         stars: 4,
         stockCode: "",
+        stockName: "",
+        market: "twse",
         title: "台灣半導體供應鏈：高通 Snapdragon 8 Elite 2備貨觀察",
         excerpt: "歐系大行調研指出高通下一代旗艦處理器備貨進度良好，台積電3nm產能配置順利，相關IC設計、基板族群受惠明確。",
         full: "歐系大行調研指出高通下一代旗艦處理器備貨進度良好，台積電3nm產能配置順利。相關受惠族群包含IC設計（聯發科關聯零組件）、封測（日月光）以及主板PCB廠商。"
@@ -433,6 +479,8 @@ const reports = [
         cat: "stock",
         stars: 5,
         stockCode: "3711",
+        stockName: "日月光投控",
+        market: "twse",
         title: "日月光：先進封裝產能全滿，2.5D/3D封裝2026年展望正向",
         excerpt: "美系大行指出日月光先進封裝（SiP、2.5D）產能已全數售罄至2026年底，客戶結構以AI/HPC為主，維持買進。",
         full: "美系大行指出日月光先進封裝（SiP、2.5D）產能已全數售罄至2026年底，客戶結構以AI/HPC為主，佔先進封裝收入達60%。預估2026年EPS 12.5元，維持買進，目標價185元。"
@@ -443,6 +491,8 @@ const reports = [
         cat: "industry",
         stars: 3,
         stockCode: "",
+        stockName: "",
+        market: "twse",
         title: "台灣CB市場觀察：2026年新發行量預估回溫",
         excerpt: "外資法人指出台灣可轉債市場在利率高點回落後，2026年新發行量預估較去年成長15-20%，CB作為融資工具再度受到中小型上市企業青睞。",
         full: "外資法人指出台灣可轉債市場在利率高點回落後，2026年新發行量預估較去年成長15-20%。電子業與傳產業占比各半，融資目的以資本支出擴充為主。CB票面利率中位數約0.5%，轉換溢價率平均20-25%。"
@@ -453,6 +503,8 @@ const reports = [
         cat: "stock",
         stars: 4,
         stockCode: "2454",
+        stockName: "聯發科",
+        market: "twse",
         title: "聯發科：天璣旗艦晶片出貨超預期，下調目標價但維持買進",
         excerpt: "美系券商指出聯發科天璣旗艦晶片在中國品牌市佔率回升，但因整體手機市場復甦緩慢，下調目標價至1300元，維持買進。",
         full: "美系券商指出聯發科天璣旗艦晶片在中國品牌市佔率持續回升，2Q26出貨超預期約10%。然因整體手機市場復甦速度較預期緩慢，下調2026年EPS預估5%，目標價由1380元下調至1300元，維持買進評等。"
@@ -463,9 +515,11 @@ const reports = [
         cat: "industry",
         stars: 5,
         stockCode: "",
+        stockName: "",
+        market: "twse",
         title: "ASML EUV設備 2026年交機展望：台韓競爭白熱化",
         excerpt: "外資大行追蹤ASML High-NA EUV設備在台積電與三星的導入時程，指出台積電在2nm後段製程具備明顯技術領先優勢，訂單能見度高。",
-        full: "外資大行追蹤ASML High-NA EUV設備在台積電與三星的導入時程。台積電目前已確認接收3台High-NA機台，預計2027年進入量產階段，三星進度落後約18個月。此一差距將進一步鞏固台積電在先進製程的領導地位，外資維持台積電買進評等。"
+        full: "外資大行追蹤ASML High-NA EUV設備在台積電與三星的導入時程。台積電目前已確認接收3台High-NA機台，預計2027年進入量產階段，三星進度落後約18個月。此一差距將進一步鞏固台積電在先進製程的領導地位。"
     },
     {
         date: "2026/06/04",
@@ -473,44 +527,44 @@ const reports = [
         cat: "stock",
         stars: 3,
         stockCode: "2382",
+        stockName: "廣達",
+        market: "twse",
         title: "廣達：AI伺服器獲利率改善，但評價已充分反映",
         excerpt: "歐系券商維持廣達中立評等，指出AI伺服器獲利率確有改善，但目前股價評價已充分反映成長預期，上行空間有限。",
         full: "歐系券商維持廣達中立評等，指出AI伺服器獲利率確有改善（毛利率預估5.5%），但目前股價本益比達18x，已充分反映2026年成長預期，上行空間有限。目標價285元，維持中立。"
     }
 ];
 
-// ── 狀態 ───────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+// 狀態
+// ════════════════════════════════════════════════════
 let activeCat = "all";
 let activeStar = 0;
 let activeDays = 0;
 let searchKeyword = "";
 let stockFilter = "";
 
-// ── 初始化 ─────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+// 初始化
+// ════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
     updateCounts();
     applyFilters();
-
-    document.getElementById('searchInput').addEventListener('keydown', e => {
-        if (e.key === 'Enter') applyFilters();
-    });
-    document.getElementById('stockInput').addEventListener('keydown', e => {
-        if (e.key === 'Enter') filterByStock();
-    });
+    document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
+    document.getElementById('stockInput').addEventListener('keydown', e => { if (e.key === 'Enter') filterByStock(); });
 });
 
-// ── 更新 tab 數量 ──────────────────────────────────────────────────────────
 function updateCounts() {
     const total = reports.length;
-    const stockCount = reports.filter(r => r.cat === 'stock').length;
-    const indCount = reports.filter(r => r.cat === 'industry').length;
     document.getElementById('countAll').textContent = total;
-    document.getElementById('countStock').textContent = stockCount;
-    document.getElementById('countIndustry').textContent = indCount;
+    document.getElementById('countStock').textContent = reports.filter(r => r.cat === 'stock').length;
+    document.getElementById('countIndustry').textContent = reports.filter(r => r.cat === 'industry').length;
     document.getElementById('entryCount').textContent = `${total} 則報導`;
 }
 
-// ── 篩選器設定 ────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+// 篩選器
+// ════════════════════════════════════════════════════
 function setCat(el) {
     document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
@@ -519,21 +573,18 @@ function setCat(el) {
     document.getElementById('stockInput').value = "";
     applyFilters();
 }
-
 function setStar(el) {
     document.querySelectorAll('[data-star]').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
     activeStar = parseInt(el.dataset.star);
     applyFilters();
 }
-
 function setDays(el) {
     document.querySelectorAll('[data-days]').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
     activeDays = parseInt(el.dataset.days);
     applyFilters();
 }
-
 function filterByStock() {
     stockFilter = document.getElementById('stockInput').value.trim();
     activeCat = "all";
@@ -542,59 +593,43 @@ function filterByStock() {
     applyFilters();
 }
 
-// ── 主篩選邏輯 ────────────────────────────────────────────────────────────
 function applyFilters() {
     searchKeyword = document.getElementById('searchInput').value.trim().toLowerCase();
     const today = new Date();
-
     const filtered = reports.filter(r => {
-        // 分類
         if (activeCat !== "all" && r.cat !== activeCat) return false;
-
-        // 星等
         if (activeStar > 0 && r.stars !== activeStar) return false;
-
-        // 時間
         if (activeDays > 0) {
-            const rDate = new Date(r.date.replace(/\//g, '-'));
-            const diff = (today - rDate) / (1000 * 60 * 60 * 24);
+            const diff = (today - new Date(r.date.replace(/\//g, '-'))) / 86400000;
             if (diff > activeDays) return false;
         }
-
-        // 關鍵字搜尋
         if (searchKeyword) {
-            const haystack = [r.title, r.excerpt, r.source, r.stockCode, r.full].join(' ').toLowerCase();
-            if (!haystack.includes(searchKeyword)) return false;
+            const hay = [r.title, r.excerpt, r.full, r.source, r.stockCode, r.stockName].join(' ').toLowerCase();
+            if (!hay.includes(searchKeyword)) return false;
         }
-
-        // 個股代號篩選
         if (stockFilter) {
             const q = stockFilter.toLowerCase();
-            if (!r.stockCode.toLowerCase().includes(q) && !r.title.toLowerCase().includes(q) && !r.excerpt.toLowerCase().includes(q)) return false;
+            if (!r.stockCode.toLowerCase().includes(q) && !r.stockName.toLowerCase().includes(q)
+                && !r.title.toLowerCase().includes(q) && !r.excerpt.toLowerCase().includes(q)) return false;
         }
-
         return true;
     });
-
-    // 排序：最新優先
     filtered.sort((a, b) => new Date(b.date.replace(/\//g, '-')) - new Date(a.date.replace(/\//g, '-')));
-
     renderResults(filtered);
 }
 
-// ── 渲染結果 ──────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+// 渲染
+// ════════════════════════════════════════════════════
 function renderResults(list) {
     const container = document.getElementById('reportList');
-    const summary = document.getElementById('resultsSummary');
-
-    summary.textContent = `${list.length} RESULTS`;
+    document.getElementById('resultsSummary').textContent = `${list.length} RESULTS`;
 
     if (list.length === 0) {
         container.innerHTML = '<div class="empty">😔 找不到符合條件的報導</div>';
         return;
     }
 
-    // 按年月分組
     const groups = {};
     list.forEach(r => {
         const ym = r.date.substring(0, 7).replace('/', ' / ');
@@ -603,43 +638,185 @@ function renderResults(list) {
     });
 
     let html = '';
+    const priceTargets = []; // 待抓價格的報導
+
     Object.keys(groups).sort((a, b) => b.localeCompare(a)).forEach(ym => {
-        html += `<div class="date-group">
-            <div class="date-group-header">${ym}</div>`;
+        html += `<div class="date-group"><div class="date-group-header">${ym}</div>`;
         groups[ym].forEach((r, idx) => {
-            const id = `card_${ym.replace(/ /g,'')}${idx}`;
+            const cardId = `card_${ym.replace(/ /g, '')}${idx}`;
+            const priceId = `price_${cardId}`;
             const starsStr = '★'.repeat(r.stars) + '☆'.repeat(5 - r.stars);
             const catBadge = r.cat === 'stock'
                 ? `<span class="badge badge-stock">個股外電</span>`
                 : `<span class="badge badge-industry">產業觀察</span>`;
-            const stockTag = r.stockCode ? `<span class="stock-tag">${r.stockCode}</span>` : '';
+
+            // 區間報酬區塊（有股票代號才顯示）
+            let priceHtml = '';
+            if (r.stockCode) {
+                priceHtml = `<div class="price-block" id="${priceId}">
+                    <div class="price-row">
+                        <span class="price-stock-info">${r.stockName}<span class="price-stock-code">${r.stockCode}</span></span>
+                        <span class="price-loading">📡 載入中...</span>
+                    </div>
+                </div>`;
+                priceTargets.push({ code: r.stockCode, date: r.date, market: r.market || 'twse', elId: priceId });
+            }
+
             html += `
-            <div class="report-card" onclick="toggleFull('${id}')">
+            <div class="report-card">
                 <div class="report-meta">
                     <span class="report-date">${r.date}</span>
                     <span class="report-source">${r.source}</span>
                     ${catBadge}
                     <span class="stars">${starsStr}</span>
-                    ${stockTag}
                 </div>
-                <div class="report-title">${r.title}</div>
-                <div class="report-excerpt" id="exc_${id}">${r.excerpt}</div>
-                <div class="report-full" id="${id}">${r.full}</div>
+                ${priceHtml}
+                <div class="report-title" onclick="toggleFull('${cardId}')">${r.title}</div>
+                <div class="report-excerpt" id="exc_${cardId}" onclick="toggleFull('${cardId}')">${r.excerpt}</div>
+                <div class="report-full" id="${cardId}">${r.full}</div>
             </div>`;
         });
         html += '</div>';
     });
 
     container.innerHTML = html;
+
+    // 非同步抓股票價格（不阻塞畫面渲染）
+    priceTargets.forEach(t => loadPriceBlock(t.code, t.date, t.market, t.elId));
 }
 
-// ── 展開/收合全文 ─────────────────────────────────────────────────────────
 function toggleFull(id) {
     const full = document.getElementById(id);
     const exc = document.getElementById('exc_' + id);
     const isOpen = full.classList.contains('open');
     full.classList.toggle('open', !isOpen);
-    if (exc) exc.style.display = isOpen ? '' : 'none';
+    if (exc) exc.style.display = isOpen ? '' : '';
+    if (exc) exc.style['-webkit-line-clamp'] = isOpen ? '3' : 'unset';
+    exc.style.display = isOpen ? '' : 'block';
+    exc.style.webkitLineClamp = isOpen ? '3' : 'unset';
+    exc.style.overflow = isOpen ? 'hidden' : 'visible';
+}
+
+// ════════════════════════════════════════════════════
+// 股票價格 (TWSE Open API + TPEX fallback)
+// 資料來源：台灣證券交易所 openapi.twse.com.tw
+// ════════════════════════════════════════════════════
+const priceCache = {};
+
+async function fetchTWSEMonth(code, year, month) {
+    const key = `twse_${code}_${year}_${month}`;
+    if (priceCache[key] !== undefined) return priceCache[key];
+    const yyyymm01 = `${year}${String(month).padStart(2, '0')}01`;
+    try {
+        const res = await fetch(`https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY?stockNo=${code}&date=${yyyymm01}`);
+        if (!res.ok) { priceCache[key] = null; return null; }
+        const data = await res.json();
+        const result = Array.isArray(data) && data.length > 0 ? data : null;
+        priceCache[key] = result;
+        return result;
+    } catch(e) { priceCache[key] = null; return null; }
+}
+
+async function fetchTPEXMonth(code, year, month) {
+    const key = `tpex_${code}_${year}_${month}`;
+    if (priceCache[key] !== undefined) return priceCache[key];
+    // 櫃買中心：民國年月格式
+    const rocYear = year - 1911;
+    const mm = String(month).padStart(2, '0');
+    try {
+        const res = await fetch(`https://www.tpex.org.tw/openapi/v1/tpex_esb_sec_neweqty_ipoinfo`);
+        // TPEX 日K endpoint: 用 tpex_esb_daily_close_quotes by stock
+        const res2 = await fetch(`https://www.tpex.org.tw/web/stock/aftertrading/daily_trading_info/st43_result.php?l=zh-tw&d=${rocYear}/${mm}/01&stkno=${code}&o=json`);
+        if (!res2.ok) { priceCache[key] = null; return null; }
+        const data = await res2.json();
+        // TPEX returns { aaData: [[date, vol, val, open, high, low, close, ...], ...] }
+        if (!data.aaData || data.aaData.length === 0) { priceCache[key] = null; return null; }
+        // Convert to TWSE-like format for unified processing
+        const rows = data.aaData.map(row => ({
+            Date: row[0],         // "115/06/01" (ROC)
+            ClosingPrice: row[6], // close price
+            _isTpex: true
+        }));
+        priceCache[key] = rows;
+        return rows;
+    } catch(e) { priceCache[key] = null; return null; }
+}
+
+function rocToDate(rocStr) {
+    // "115/06/11" or "115/6/11" -> Date
+    const p = rocStr.replace(/\s/g, '').split('/');
+    return new Date(parseInt(p[0]) + 1911, parseInt(p[1]) - 1, parseInt(p[2]));
+}
+
+function parseClose(val) {
+    if (val == null) return NaN;
+    const n = parseFloat(String(val).replace(/,/g, ''));
+    return isNaN(n) ? NaN : n;
+}
+
+async function loadPriceBlock(code, reportDateStr, market, elId) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+
+    const [yr, mo, dy] = reportDateStr.split('/').map(Number);
+    const reportDate = new Date(yr, mo - 1, dy);
+    const today = new Date();
+    const curYear = today.getFullYear();
+    const curMonth = today.getMonth() + 1;
+
+    const fetchFn = market === 'tpex' ? fetchTPEXMonth : fetchTWSEMonth;
+
+    // 抓報導當月資料
+    let rows = await fetchFn(code, yr, mo) || [];
+
+    // 如果報導不在本月，再抓本月資料取得最新收盤
+    if (yr !== curYear || mo !== curMonth) {
+        const curRows = await fetchFn(code, curYear, curMonth) || [];
+        rows = [...rows, ...curRows];
+    }
+
+    // 解析並排序
+    const parsed = rows
+        .map(r => ({ date: rocToDate(r.Date), close: parseClose(r.ClosingPrice) }))
+        .filter(r => !isNaN(r.close) && r.date instanceof Date && !isNaN(r.date))
+        .sort((a, b) => a.date - b.date);
+
+    if (parsed.length === 0) {
+        el.innerHTML = `<div class="price-row">
+            <span class="price-stock-info">${el.querySelector('.price-stock-info')?.textContent || code}</span>
+            <span class="price-na">暫無報價</span>
+        </div>`;
+        return;
+    }
+
+    // 起始價：報導日當天或之後第一個交易日
+    const startRow = parsed.find(r => r.date >= reportDate);
+    if (!startRow) {
+        el.innerHTML = el.innerHTML.replace('<span class="price-loading">📡 載入中...</span>', '<span class="price-na">-</span>');
+        return;
+    }
+
+    // 結束價：最後一個有資料的交易日
+    const endRow = parsed[parsed.length - 1];
+    const pct = (endRow.close - startRow.close) / startRow.close * 100;
+    const isUp = pct >= 0;
+    const daysDiff = Math.max(0, Math.round((endRow.date - startRow.date) / 86400000));
+
+    const fmt = d => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+
+    // 取出股票資訊文字（保留原先的名稱+代號）
+    const stockInfoEl = el.querySelector('.price-stock-info');
+    const stockInfoHtml = stockInfoEl ? stockInfoEl.outerHTML : `<span class="price-stock-info">${code}</span>`;
+
+    el.innerHTML = `
+        <div class="price-row">
+            ${stockInfoHtml}
+            <span class="price-pct ${isUp ? 'up' : 'down'}">${isUp ? '▲' : '▼'} ${Math.abs(pct).toFixed(2)}%</span>
+        </div>
+        <div class="price-detail">
+            <span class="price-values">${startRow.close.toFixed(2)} — ${endRow.close.toFixed(2)}</span>
+            <span class="price-period">${fmt(startRow.date)} - ${fmt(endRow.date)} · ${daysDiff}日</span>
+        </div>`;
 }
 </script>
 </body>
