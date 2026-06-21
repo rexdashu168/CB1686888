@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>外電報導 - Rex大叔的168台股投資教室</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+            background: #f3f5f9;
+            color: #1f2937;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        header {
+            background: #1e3a5f;
+            color: #fff;
+            padding: 20px;
+        }
+        .header-inner {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        header h1 { font-size: 1.5em; }
+        header .subtitle { font-size: 0.88em; opacity: 0.8; margin-top: 4px; }
+        .nav-links { display: flex; gap: 12px; flex-wrap: wrap; }
+        .nav-links a {
+            color: rgba(255,255,255,0.75);
+            text-decoration: none;
+            font-size: 0.88em;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.25);
+            transition: all 0.2s;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+
+        /* ── Main wrapper ── */
+        .main {
+            max-width: 900px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+
+        /* ── Title bar ── */
+        .title-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .title-bar h2 { font-size: 1.6em; color: #1e3a5f; }
+        .entry-count { font-size: 0.9em; color: #6b7280; }
+
+        /* ── Search bar ── */
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 11px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-family: inherit;
+            background: #fff;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .search-bar input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        .search-bar button {
+            padding: 11px 22px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .search-bar button:hover { background: #1d4ed8; }
+
+        /* ── Category tabs ── */
+        .cat-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .cat-tab {
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1.5px solid #d1d5db;
+            background: #fff;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #374151;
+        }
+        .cat-tab.active {
+            background: #1e3a5f;
+            color: #fff;
+            border-color: #1e3a5f;
+        }
+        .cat-tab .count {
+            display: inline-block;
+            margin-left: 6px;
+            font-size: 0.85em;
+            opacity: 0.75;
+        }
+
+        /* ── Filter row ── */
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .filter-label {
+            font-size: 0.88em;
+            color: #6b7280;
+            width: 36px;
+            flex-shrink: 0;
+        }
+        .filter-btn {
+            padding: 5px 13px;
+            border-radius: 14px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            font-size: 0.88em;
+            cursor: pointer;
+            color: #374151;
+            transition: all 0.2s;
+        }
+        .filter-btn.active {
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+        }
+
+        /* ── Results summary ── */
+        .results-summary {
+            font-size: 0.9em;
+            color: #6b7280;
+            margin: 18px 0 12px;
+            font-weight: 500;
+        }
+
+        /* ── Date group ── */
+        .date-group { margin-bottom: 6px; }
+        .date-group-header {
+            font-size: 1.05em;
+            font-weight: bold;
+            color: #374151;
+            padding: 10px 0 8px;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Report card ── */
+        .report-card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+            border-left: 4px solid transparent;
+            cursor: pointer;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        .report-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); border-left-color: #2563eb; }
+        .report-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .report-date { font-size: 0.82em; color: #6b7280; }
+        .report-source { font-size: 0.82em; color: #374151; font-weight: 600; }
+        .badge {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+        .badge-stock { background: #dbeafe; color: #1d4ed8; }
+        .badge-industry { background: #d1fae5; color: #065f46; }
+        .stars { color: #f59e0b; font-size: 0.88em; letter-spacing: 1px; }
+        .stock-tag {
+            font-size: 0.78em;
+            color: #fff;
+            background: #64748b;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .report-title {
+            font-size: 1.02em;
+            font-weight: bold;
+            color: #1e3a5f;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        .report-excerpt {
+            font-size: 0.88em;
+            color: #4b5563;
+            line-height: 1.7;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* ── Expanded content ── */
+        .report-full {
+            display: none;
+            font-size: 0.9em;
+            color: #374151;
+            line-height: 1.8;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .report-full.open { display: block; }
+
+        /* ── Stock query bar ── */
+        .stock-query {
+            position: sticky;
+            bottom: 0;
+            background: #fff;
+            border-top: 1px solid #e5e7eb;
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+        }
+        .stock-query input {
+            flex: 1;
+            padding: 9px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-family: inherit;
+            outline: none;
+        }
+        .stock-query input:focus { border-color: #2563eb; }
+        .stock-query button {
+            padding: 9px 20px;
+            background: #1e3a5f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .stock-query .hint { font-size: 0.8em; color: #9ca3af; text-align: center; margin-top: 4px; }
+
+        /* ── Empty state ── */
+        .empty { text-align: center; padding: 60px 20px; color: #9ca3af; font-size: 1em; }
+
+        /* ── Footer ── */
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.85em;
+            color: #9ca3af;
+            margin-top: 40px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        @media (max-width: 600px) {
+            .title-bar h2 { font-size: 1.3em; }
+            .report-card { padding: 13px 14px; }
+            .search-bar { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <div>
+            <h1>📡 外電報導</h1>
+            <div class="subtitle">Rex大叔的168台股投資教室 | 外資研究報告整理</div>
+        </div>
+        <nav class="nav-links">
+            <a href="index.html">🎯 CBAS分析</a>
+            <a href="cb_dashboard.html">📊 CB看板</a>
+            <a href="foreign_news.html" class="active">📡 外電報導</a>
+        </nav>
+    </div>
+</header>
+
+<div class="main">
+    <div class="title-bar">
+        <h2>外電報導</h2>
+        <span class="entry-count" id="entryCount">載入中...</span>
+    </div>
+
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="搜尋公司、代號、關鍵字、標籤...">
+        <button onclick="applyFilters()">搜尋</button>
+    </div>
+
+    <!-- Category tabs -->
+    <div class="cat-tabs">
+        <button class="cat-tab active" data-cat="all" onclick="setCat(this)">
+            全部 <span class="count" id="countAll"></span>
+        </button>
+        <button class="cat-tab" data-cat="stock" onclick="setCat(this)">
+            個股外電 <span class="count" id="countStock"></span>
+        </button>
+        <button class="cat-tab" data-cat="industry" onclick="setCat(this)">
+            產業觀察 <span class="count" id="countIndustry"></span>
+        </button>
+    </div>
+
+    <!-- Star filter -->
+    <div class="filter-row">
+        <span class="filter-label">星等</span>
+        <button class="filter-btn active" data-star="0" onclick="setStar(this)">全部</button>
+        <button class="filter-btn" data-star="5" onclick="setStar(this)">★★★★★</button>
+        <button class="filter-btn" data-star="4" onclick="setStar(this)">★★★★☆</button>
+        <button class="filter-btn" data-star="3" onclick="setStar(this)">★★★☆☆</button>
+    </div>
+
+    <!-- Time filter -->
+    <div class="filter-row">
+        <span class="filter-label">時間</span>
+        <button class="filter-btn active" data-days="0" onclick="setDays(this)">全部</button>
+        <button class="filter-btn" data-days="30" onclick="setDays(this)">近30天</button>
+        <button class="filter-btn" data-days="90" onclick="setDays(this)">近90天</button>
+    </div>
+
+    <div class="results-summary" id="resultsSummary"></div>
+    <div id="reportList"></div>
+</div>
+
+<!-- Sticky stock query bar -->
+<div class="stock-query">
+    <input type="text" id="stockInput" placeholder="輸入個股代號或名稱..." maxlength="10">
+    <button onclick="filterByStock()">查詢</button>
+</div>
+<div class="hint" style="text-align:center;font-size:0.8em;color:#9ca3af;padding:4px 0 8px;">僅供研究參考</div>
+
+<footer>
+    © 2025 Rex大叔的168台股投資教室 | 外電報導 | 資料僅供參考，投資有風險，入市需謹慎
+</footer>
+
+<script>
+// ── 報導資料 ──────────────────────────────────────────────────────────────────
+// 新增報導：在 reports 陣列中照格式加入即可
+// cat: "stock"=個股外電, "industry"=產業觀察
+// stars: 1~5
+// date: "YYYY/MM/DD"
+// stockCode: 股票代號 (個股報導填入，產業觀察可留空)
+// ─────────────────────────────────────────────────────────────────────────────
+const reports = [
+    {
+        date: "2026/06/11",
+        source: "美系大行",
+        cat: "industry",
+        stars: 5,
+        stockCode: "",
+        title: "800V DC delay 澄清一 美系大行",
+        excerpt: "美系大行表示這消息與他們的通路訪查結果完全相反。在上週Nvidia GTC Taipei已報告800V準備好要在3Q26要進入量產，同時券商更看到台達電為第一家將在4Q26出貨800V DC獨立電力機櫃給一家北美Hyperscaler的供應商。初期量當然不會大，但至少方向與時程是明確的。券商重申看好台達電的投資評等。",
+        full: "美系大行表示這消息與他們的通路訪查結果完全相反。在上週Nvidia GTC Taipei已報告800V準備好要在3Q26要進入量產，同時券商更看到台達電為第一家將在4Q26出貨800V DC獨立電力機櫃給一家北美Hyperscaler的供應商。初期量當然不會大，但至少方向與時程是明確的。券商重申對台達電維持買進評等，目標價維持不變。"
+    },
+    {
+        date: "2026/06/10",
+        source: "外資券商",
+        cat: "stock",
+        stars: 5,
+        stockCode: "2330",
+        title: "台積電 CoWoS需求持續強勁，上調目標價",
+        excerpt: "外資券商指出台積電CoWoS先進封裝產能持續供不應求，AI伺服器相關需求強勁支撐2026年營收展望。維持買進評等，目標價由1200元上調至1350元。",
+        full: "外資券商指出台積電CoWoS先進封裝產能持續供不應求，AI伺服器相關需求強勁支撐2026年營收展望。N2製程客戶認證進度超出預期，有望提前量產。目標價由1200元上調至1350元，維持買進評等。"
+    },
+    {
+        date: "2026/06/10",
+        source: "日系外資",
+        cat: "industry",
+        stars: 4,
+        stockCode: "",
+        title: "AI PCB族群：散熱基板需求超預期，族群評等上調",
+        excerpt: "日系外資上調AI PCB族群評等，指出AI伺服器散熱基板（散熱塗層、複合銅箔）需求遠超市場預期，台灣供應鏈在此領域具備明顯優勢。",
+        full: "日系外資上調AI PCB族群評等，指出AI伺服器散熱基板（散熱塗層、複合銅箔）需求遠超市場預期。台廠包含健鼎、欣興具備明顯優勢，預估2026年相關產品營收年增40%以上。"
+    },
+    {
+        date: "2026/06/09",
+        source: "美系券商",
+        cat: "stock",
+        stars: 5,
+        stockCode: "2317",
+        title: "鴻海：AI伺服器出貨展望上調，GB200機架組裝份額擴大",
+        excerpt: "美系券商上調鴻海2026年AI伺服器出貨量預估，GB200 NVL72機架組裝份額超預期，維持買進，目標價230元。",
+        full: "美系券商上調鴻海2026年AI伺服器出貨量預估，GB200 NVL72機架組裝份額超預期達到35%，預計2026年AI伺服器收入年增75%。維持買進評等，目標價由210元上調至230元。"
+    },
+    {
+        date: "2026/06/09",
+        source: "歐系大行",
+        cat: "industry",
+        stars: 4,
+        stockCode: "",
+        title: "台灣半導體供應鏈：高通 Snapdragon 8 Elite 2備貨觀察",
+        excerpt: "歐系大行調研指出高通下一代旗艦處理器備貨進度良好，台積電3nm產能配置順利，相關IC設計、基板族群受惠明確。",
+        full: "歐系大行調研指出高通下一代旗艦處理器備貨進度良好，台積電3nm產能配置順利。相關受惠族群包含IC設計（聯發科關聯零組件）、封測（日月光）以及主板PCB廠商。"
+    },
+    {
+        date: "2026/06/08",
+        source: "美系大行",
+        cat: "stock",
+        stars: 5,
+        stockCode: "3711",
+        title: "日月光：先進封裝產能全滿，2.5D/3D封裝2026年展望正向",
+        excerpt: "美系大行指出日月光先進封裝（SiP、2.5D）產能已全數售罄至2026年底，客戶結構以AI/HPC為主，維持買進。",
+        full: "美系大行指出日月光先進封裝（SiP、2.5D）產能已全數售罄至2026年底，客戶結構以AI/HPC為主，佔先進封裝收入達60%。預估2026年EPS 12.5元，維持買進，目標價185元。"
+    },
+    {
+        date: "2026/06/07",
+        source: "外資法人",
+        cat: "industry",
+        stars: 3,
+        stockCode: "",
+        title: "台灣CB市場觀察：2026年新發行量預估回溫",
+        excerpt: "外資法人指出台灣可轉債市場在利率高點回落後，2026年新發行量預估較去年成長15-20%，CB作為融資工具再度受到中小型上市企業青睞。",
+        full: "外資法人指出台灣可轉債市場在利率高點回落後，2026年新發行量預估較去年成長15-20%。電子業與傳產業占比各半，融資目的以資本支出擴充為主。CB票面利率中位數約0.5%，轉換溢價率平均20-25%。"
+    },
+    {
+        date: "2026/06/06",
+        source: "美系券商",
+        cat: "stock",
+        stars: 4,
+        stockCode: "2454",
+        title: "聯發科：天璣旗艦晶片出貨超預期，下調目標價但維持買進",
+        excerpt: "美系券商指出聯發科天璣旗艦晶片在中國品牌市佔率回升，但因整體手機市場復甦緩慢，下調目標價至1300元，維持買進。",
+        full: "美系券商指出聯發科天璣旗艦晶片在中國品牌市佔率持續回升，2Q26出貨超預期約10%。然因整體手機市場復甦速度較預期緩慢，下調2026年EPS預估5%，目標價由1380元下調至1300元，維持買進評等。"
+    },
+    {
+        date: "2026/06/05",
+        source: "外資大行",
+        cat: "industry",
+        stars: 5,
+        stockCode: "",
+        title: "ASML EUV設備 2026年交機展望：台韓競爭白熱化",
+        excerpt: "外資大行追蹤ASML High-NA EUV設備在台積電與三星的導入時程，指出台積電在2nm後段製程具備明顯技術領先優勢，訂單能見度高。",
+        full: "外資大行追蹤ASML High-NA EUV設備在台積電與三星的導入時程。台積電目前已確認接收3台High-NA機台，預計2027年進入量產階段，三星進度落後約18個月。此一差距將進一步鞏固台積電在先進製程的領導地位，外資維持台積電買進評等。"
+    },
+    {
+        date: "2026/06/04",
+        source: "歐系券商",
+        cat: "stock",
+        stars: 3,
+        stockCode: "2382",
+        title: "廣達：AI伺服器獲利率改善，但評價已充分反映",
+        excerpt: "歐系券商維持廣達中立評等，指出AI伺服器獲利率確有改善，但目前股價評價已充分反映成長預期，上行空間有限。",
+        full: "歐系券商維持廣達中立評等，指出AI伺服器獲利率確有改善（毛利率預估5.5%），但目前股價本益比達18x，已充分反映2026年成長預期，上行空間有限。目標價285元，維持中立。"
+    }
+];
+
+// ── 狀態 ───────────────────────────────────────────────────────────────────
+let activeCat = "all";
+let activeStar = 0;
+let activeDays = 0;
+let searchKeyword = "";
+let stockFilter = "";
+
+// ── 初始化 ─────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+    updateCounts();
+    applyFilters();
+
+    document.getElementById('searchInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') applyFilters();
+    });
+    document.getElementById('stockInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') filterByStock();
+    });
+});
+
+// ── 更新 tab 數量 ──────────────────────────────────────────────────────────
+function updateCounts() {
+    const total = reports.length;
+    const stockCount = reports.filter(r => r.cat === 'stock').length;
+    const indCount = reports.filter(r => r.cat === 'industry').length;
+    document.getElementById('countAll').textContent = total;
+    document.getElementById('countStock').textContent = stockCount;
+    document.getElementById('countIndustry').textContent = indCount;
+    document.getElementById('entryCount').textContent = `${total} 則報導`;
+}
+
+// ── 篩選器設定 ────────────────────────────────────────────────────────────
+function setCat(el) {
+    document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    activeCat = el.dataset.cat;
+    stockFilter = "";
+    document.getElementById('stockInput').value = "";
+    applyFilters();
+}
+
+function setStar(el) {
+    document.querySelectorAll('[data-star]').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    activeStar = parseInt(el.dataset.star);
+    applyFilters();
+}
+
+function setDays(el) {
+    document.querySelectorAll('[data-days]').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    activeDays = parseInt(el.dataset.days);
+    applyFilters();
+}
+
+function filterByStock() {
+    stockFilter = document.getElementById('stockInput').value.trim();
+    activeCat = "all";
+    document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-cat="all"]').classList.add('active');
+    applyFilters();
+}
+
+// ── 主篩選邏輯 ────────────────────────────────────────────────────────────
+function applyFilters() {
+    searchKeyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    const today = new Date();
+
+    const filtered = reports.filter(r => {
+        // 分類
+        if (activeCat !== "all" && r.cat !== activeCat) return false;
+
+        // 星等
+        if (activeStar > 0 && r.stars !== activeStar) return false;
+
+        // 時間
+        if (activeDays > 0) {
+            const rDate = new Date(r.date.replace(/\//g, '-'));
+            const diff = (today - rDate) / (1000 * 60 * 60 * 24);
+            if (diff > activeDays) return false;
+        }
+
+        // 關鍵字搜尋
+        if (searchKeyword) {
+            const haystack = [r.title, r.excerpt, r.source, r.stockCode, r.full].join(' ').toLowerCase();
+            if (!haystack.includes(searchKeyword)) return false;
+        }
+
+        // 個股代號篩選
+        if (stockFilter) {
+            const q = stockFilter.toLowerCase();
+            if (!r.stockCode.toLowerCase().includes(q) && !r.title.toLowerCase().includes(q) && !r.excerpt.toLowerCase().includes(q)) return false;
+        }
+
+        return true;
+    });
+
+    // 排序：最新優先
+    filtered.sort((a, b) => new Date(b.date.replace(/\//g, '-')) - new Date(a.date.replace(/\//g, '-')));
+
+    renderResults(filtered);
+}
+
+// ── 渲染結果 ──────────────────────────────────────────────────────────────
+function renderResults(list) {
+    const container = document.getElementById('reportList');
+    const summary = document.getElementById('resultsSummary');
+
+    summary.textContent = `${list.length} RESULTS`;
+
+    if (list.length === 0) {
+        container.innerHTML = '<div class="empty">😔 找不到符合條件的報導</div>';
+        return;
+    }
+
+    // 按年月分組
+    const groups = {};
+    list.forEach(r => {
+        const ym = r.date.substring(0, 7).replace('/', ' / ');
+        if (!groups[ym]) groups[ym] = [];
+        groups[ym].push(r);
+    });
+
+    let html = '';
+    Object.keys(groups).sort((a, b) => b.localeCompare(a)).forEach(ym => {
+        html += `<div class="date-group">
+            <div class="date-group-header">${ym}</div>`;
+        groups[ym].forEach((r, idx) => {
+            const id = `card_${ym.replace(/ /g,'')}${idx}`;
+            const starsStr = '★'.repeat(r.stars) + '☆'.repeat(5 - r.stars);
+            const catBadge = r.cat === 'stock'
+                ? `<span class="badge badge-stock">個股外電</span>`
+                : `<span class="badge badge-industry">產業觀察</span>`;
+            const stockTag = r.stockCode ? `<span class="stock-tag">${r.stockCode}</span>` : '';
+            html += `
+            <div class="report-card" onclick="toggleFull('${id}')">
+                <div class="report-meta">
+                    <span class="report-date">${r.date}</span>
+                    <span class="report-source">${r.source}</span>
+                    ${catBadge}
+                    <span class="stars">${starsStr}</span>
+                    ${stockTag}
+                </div>
+                <div class="report-title">${r.title}</div>
+                <div class="report-excerpt" id="exc_${id}">${r.excerpt}</div>
+                <div class="report-full" id="${id}">${r.full}</div>
+            </div>`;
+        });
+        html += '</div>';
+    });
+
+    container.innerHTML = html;
+}
+
+// ── 展開/收合全文 ─────────────────────────────────────────────────────────
+function toggleFull(id) {
+    const full = document.getElementById(id);
+    const exc = document.getElementById('exc_' + id);
+    const isOpen = full.classList.contains('open');
+    full.classList.toggle('open', !isOpen);
+    if (exc) exc.style.display = isOpen ? '' : 'none';
+}
+</script>
+</body>
+</html>
